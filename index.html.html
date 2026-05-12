@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GCF Tracker - Republica Dominicana</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Trebuchet MS",Georgia,sans-serif;background:#F9F6F0}
+    #root{min-height:100vh}
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}
+    select,input,textarea{font-family:inherit}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+
+var useState  = React.useState;
+var useEffect = React.useEffect;
+var useRef    = React.useRef;
+var RadarChart       = Recharts.RadarChart;
+var PolarGrid        = Recharts.PolarGrid;
+var PolarAngleAxis   = Recharts.PolarAngleAxis;
+var Radar            = Recharts.Radar;
+var ResponsiveContainer = Recharts.ResponsiveContainer;
+var BarChart = Recharts.BarChart;
+var Bar      = Recharts.Bar;
+var XAxis    = Recharts.XAxis;
+var YAxis    = Recharts.YAxis;
+var Tooltip  = Recharts.Tooltip;
+var Cell     = Recharts.Cell;
+
+function lsGet(key) {
+  try { var v = localStorage.getItem(key); return Promise.resolve(v ? {value:v} : null); }
+  catch(e) { return Promise.resolve(null); }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, value); } catch(e) {}
+  return Promise.resolve({value:value});
+}
+
+const C = { forest:"#0B3B2E", mid:"#1A5C45", gold:"#C69B2A", goldL:"#F5E9C4", sand:"#F9F6F0", white:"#FFFFFF", bord:"#E2E8E4", muted:"#6B7A74", text:"#1A2E28" };
+
+const AREAS = [
+  {id:"prescreening",    label:"Pre-screening RAF",          short:"Pre-screen",  icon:"🔍", color:"#374151", bg:"#F3F4F6"},
+  {id:"gobernanza",      label:"Gobernanza Corporativa",     short:"Gobernanza",  icon:"📋", color:"#1C4E7A", bg:"#E8F1F9"},
+  {id:"fiduciario",      label:"Gestion Financiera",         short:"Financiero",  icon:"🏛", color:"#0B3B2E", bg:"#E6F0EC"},
+  {id:"integridad",      label:"Integridad e Integracion",   short:"Integridad",  icon:"🛡", color:"#1A5C45", bg:"#EAF3EE"},
+  {id:"ess",             label:"Salvaguardas ESS",           short:"ESS",         icon:"🌿", color:"#2D7A5E", bg:"#EDF7F3"},
+  {id:"genero",          label:"Politica de Genero",         short:"Genero",      icon:"⚖", color:"#6B4C9A", bg:"#F3EDF9"},
+  {id:"mandato",         label:"Mandato y Track Record",     short:"Mandato",     icon:"🌡", color:"#B45309", bg:"#FEF3E2"},
+  {id:"gggi",            label:"Proceso con GGGI",           short:"GGGI",        icon:"🌐", color:"#059669", bg:"#D1FAE5"},
+];
+const PRI = { alta:{l:"Alta",c:"#DC2626",b:"#FEE2E2"}, media:{l:"Media",c:"#D97706",b:"#FEF3C7"}, baja:{l:"Baja",c:"#059669",b:"#D1FAE5"} };
+const STA = { pendiente:{l:"Pendiente",c:"#6B7280",b:"#F3F4F6"}, en_progreso:{l:"En progreso",c:"#2563EB",b:"#DBEAFE"}, completado:{l:"Completado",c:"#059669",b:"#D1FAE5"}, cerrado:{l:"Cerrado",c:"#374151",b:"#E5E7EB"} };
+const PST = { pipeline:{l:"Pipeline",c:"#7C3AED",b:"#EDE9FE"}, activo:{l:"Activo",c:"#2563EB",b:"#DBEAFE"}, completado:{l:"Completado",c:"#059669",b:"#D1FAE5"}, cancelado:{l:"Cancelado",c:"#DC2626",b:"#FEE2E2"} };
+const RSK = { A:{l:"Cat A - Alto",c:"#DC2626",b:"#FEE2E2"}, B:{l:"Cat B - Medio",c:"#D97706",b:"#FEF3C7"}, C:{l:"Cat C - Bajo",c:"#059669",b:"#D1FAE5"} };
+const RAREAS = ["Energia baja en emisiones","Transporte bajo en carbono","Edificaciones y ciudades","Bosques y uso de suelo","Adaptacion costera","Seguridad alimentaria e hidrica","Ecosistemas","Infraestructura resiliente","Otro"];
+const INSTRU = ["Subvencion (Grant)","Prestamo concesional","Garantia","Capital / Equity","Financiamiento combinado"];
+const PROVS  = ["Nacional","Santo Domingo","Santiago","San Pedro de Macoris","La Romana","Puerto Plata","Barahona","Azua","La Vega","San Juan","Pedernales","Samana","Otra"];
+
+const CK0 = [
+  {id:"ps1",a:"prescreening",t:"Completar cuestionario de pre-screening en plataforma GCF (disponible rolling basis, antes de ventana jul 2026)",ok:false,src:"RAF B.42/13 - Paso obligatorio 1"},
+  {id:"ps2",a:"prescreening",t:"Confirmar personalidad juridica independiente con autoridad para firmar acuerdos legales con GCF",ok:false,src:"RAF Pre-screening - Legal Personality"},
+  {id:"ps3",a:"prescreening",t:"Demostrar capacidad institucional minima para cumplir rol y responsabilidades de Entidad Acreditada (AE)",ok:false,src:"RAF Pre-screening - Minimum Capacity"},
+  {id:"ps4",a:"prescreening",t:"Nominacion formal por el AND (CNCCMDL) con carta de nominacion oficial para entidades gubernamentales",ok:false,src:"RAF B.42/13 - Nominacion AND"},
+  {id:"ps5",a:"prescreening",t:"Identificar ventana de acreditacion relevante (2 ciclos/ano, 2 meses de ventana + 9 meses revision GCF)",ok:false,src:"RAF - Dos ciclos anuales"},
+  {id:"ps6",a:"prescreening",t:"Evaluar opcion de fast-track si la entidad esta acreditada por GEF, Fondo de Adaptacion (AF) o EU DG INTPA",ok:false,src:"RAF Fast-Track - GEF/AF/EU"},
+  {id:"go1",a:"gobernanza",t:"Personeria juridica establecida con estatutos/acta constitutiva vigente en Republica Dominicana",ok:false,src:"RAF Screening - Corporate Governance"},
+  {id:"go2",a:"gobernanza",t:"Junta directiva activa con quorum documentado, actas de reuniones periodicas y responsabilidades definidas",ok:false,src:"RAF Screening - Governance Structure"},
+  {id:"go3",a:"gobernanza",t:"Estructura organica con segregacion de funciones incompatibles documentada y revisada periodicamente",ok:false,src:"RAF Screening - Internal Controls & Segregation"},
+  {id:"go4",a:"gobernanza",t:"Mandato institucional explicito alineado con finanzas climaticas y accion ambiental",ok:false,src:"RAF Screening - Institutional Mandate"},
+  {id:"go5",a:"gobernanza",t:"Manual de operaciones institucional vigente con procedimientos de control interno aprobados por directiva",ok:false,src:"RAF Screening - Operations Manual"},
+  {id:"go6",a:"gobernanza",t:"Plan estrategico 2024-2027 con componente de finanzas climaticas, metas e indicadores",ok:false,src:"RAF Governance - Strategic Plan"},
+  {id:"go7",a:"gobernanza",t:"Politica de conflicto de intereses aprobada, comunicada a todo el personal y con mecanismo de reporte",ok:false,src:"RAF Screening - Conflict of Interest"},
+  {id:"fi1",a:"fiduciario",t:"Normas contables reconocidas internacionalmente implementadas: IPSAS (sector publico) o IFRS (sector privado)",ok:false,src:"RAF Screening - Accounting Standards"},
+  {id:"fi2",a:"fiduciario",t:"Auditoria externa independiente por firma reconocida (IFAC) con estados financieros auditados (3 ultimos anos)",ok:false,src:"RAF Screening - External Audit"},
+  {id:"fi3",a:"fiduciario",t:"Funcion de auditoria interna operativa, independiente de la gestion ejecutiva con carta de auditoria",ok:false,src:"RAF Screening - Internal Audit Function"},
+  {id:"fi4",a:"fiduciario",t:"Procedimientos de planificacion presupuestaria, control de gastos y reportes financieros periodicos",ok:false,src:"RAF Screening - Financial Management"},
+  {id:"fi5",a:"fiduciario",t:"Sistema de gestion de riesgos con registro actualizado, evaluacion periodica y plan de mitigacion",ok:false,src:"RAF Screening - Risk Management"},
+  {id:"fi6",a:"fiduciario",t:"Manual de adquisiciones y contrataciones alineado con estandares internacionales documentado y vigente",ok:false,src:"RAF Screening - Procurement Procedures"},
+  {id:"fi7",a:"fiduciario",t:"Procedimientos de monitoreo financiero, reporte periodico y cierre de proyectos con auditoria final",ok:false,src:"RAF Screening - Project Financial Reporting"},
+  {id:"fi8",a:"fiduciario",t:"Sistema de M&E (Monitoreo, Evaluacion y Aprendizaje) con indicadores, metas y responsables definidos",ok:false,src:"RAF Screening - MEL Framework"},
+  {id:"fi9",a:"fiduciario",t:"Politica de informacion y transparencia financiera publica (Information Disclosure Policy) publicada",ok:false,src:"RAF Screening - Transparency & Disclosure"},
+  {id:"in1",a:"integridad",t:"Politica AML/CFT explicita categorizada como practica prohibida, alineada con estandares GAFI/FATF",ok:false,src:"RAF - AML/CFT Policy (obligatoria)"},
+  {id:"in2",a:"integridad",t:"Clausulas AML/CFT incluidas en TODOS los contratos con entidades ejecutoras y proveedores de servicios",ok:false,src:"Condicion Panel GCF - AML/CFT en contratos"},
+  {id:"in3",a:"integridad",t:"Politica de practicas prohibidas documentada: fraude, corrupcion, coercion, soborno, obstruccion",ok:false,src:"RAF - Policy on Prohibited Practices"},
+  {id:"in4",a:"integridad",t:"Procedimientos internos de investigacion, sanciones y suspension por practicas prohibidas",ok:false,src:"RAF - Integrity Investigation Procedures"},
+  {id:"in5",a:"integridad",t:"Politica de denunciantes (Whistleblower) con proteccion anti-represalias publicada y comunicada",ok:false,src:"RAF - Whistleblower & Witness Protection Policy"},
+  {id:"in6",a:"integridad",t:"Verificacion de lista de debarment del GCF y otras listas de sanciones internacionales",ok:false,src:"RAF - Debarment Check & Sanctions Screening"},
+  {id:"es1",a:"ess",t:"ESMS documentado e integrado en operaciones (ESS1 evaluada en acreditacion bajo RAF 2025)",ok:false,src:"RAF ESS1 - Assessed at Accreditation Stage"},
+  {id:"es2",a:"ess",t:"Capacidad de categorizacion de riesgo E&S: Cat A (Alto), B (Medio), C (Bajo) segun IFC Performance Standards",ok:false,src:"RAF ESS - Risk Categorization Capacity"},
+  {id:"es3",a:"ess",t:"IFC PS1: Procedimientos de evaluacion, gestion y reporte de riesgos ambientales y sociales",ok:false,src:"IFC PS1 - Core ESS Assessment"},
+  {id:"es4",a:"ess",t:"Mecanismo de quejas y reclamos (GRM) funcional e independiente - institucional y a nivel de proyecto",ok:false,src:"Condicion frecuente Panel GCF - GRM independiente"},
+  {id:"es5",a:"ess",t:"Politica de divulgacion de informacion E&S y procedimientos de consulta publica a partes interesadas",ok:false,src:"RAF - ESS Disclosure & Stakeholder Consultation"},
+  {id:"es6",a:"ess",t:"IFC PS2-PS6: Salvaguardas laborales, contaminacion, salud comunidades, biodiversidad (nivel proyecto)",ok:false,src:"RAF ESS2-6 - Assessed at Project Level"},
+  {id:"es7",a:"ess",t:"IFC PS7: Politica pueblos indigenas con FPIC (Consentimiento Libre, Previo e Informado) para proyectos",ok:false,src:"IFC PS7 + GCF IP Policy - Project Level"},
+  {id:"es8",a:"ess",t:"Auditoria independiente del ESMS planificada (recomendada o exigida post-primer desembolso GCF)",ok:false,src:"Condicion frecuente Panel - ESMS Independent Audit"},
+  {id:"ge1",a:"genero",t:"Politica de genero institucional aprobada por junta directiva, publicada y difundida al personal",ok:false,src:"RAF Gender Policy - Obligatoria en acreditacion"},
+  {id:"ge2",a:"genero",t:"Plan de Accion de Genero (GAP) con indicadores medibles, metas cuantificadas y responsables",ok:false,src:"RAF Gender Policy - Gender Action Plan"},
+  {id:"ge3",a:"genero",t:"Analisis de genero integrado en ciclo completo de proyectos: diseno, implementacion, M&E y reporte",ok:false,src:"RAF Gender Policy - Gender-responsive Programming"},
+  {id:"ge4",a:"genero",t:"Punto focal de genero designado formalmente con terminos de referencia y dedicacion minima definida",ok:false,src:"Condicion Panel GCF - Gender Focal Point (2/3 entidades)"},
+  {id:"ge5",a:"genero",t:"Personal tecnico capacitado en genero e inclusion, al menos 1 especialista con experiencia acreditada",ok:false,src:"Condicion frecuente - Gender Capacity (+50% entidades)"},
+  {id:"ge6",a:"genero",t:"Todos los sistemas de M&E institucionales con indicadores desagregados por sexo y edad",ok:false,src:"RAF Gender Policy - Gender-responsive MEL"},
+  {id:"mc1",a:"mandato",t:"Portafolio documentado de proyectos climaticos (mitigacion y/o adaptacion) con metricas de impacto verificables",ok:false,src:"GCF Climate Mandate - Institutional Track Record"},
+  {id:"mc2",a:"mandato",t:"Alineamiento documentado con NDC de Republica Dominicana (meta 27% reduccion emisiones al 2030)",ok:false,src:"NDC-RD Alignment + GCF Country Programme RD"},
+  {id:"mc3",a:"mandato",t:"Nota Concepto (CN) o Propuesta de Financiamiento en desarrollo alineada con 8 areas de resultado GCF",ok:false,src:"GCF Project Cycle - CN Development"},
+  {id:"mc4",a:"mandato",t:"Programa de Pais (Country Programme) de RD coordinado con GCF y CNCCMDL para pipeline proyectos",ok:false,src:"GCF Strategic Plan 2024-2027 - Country Programming"},
+  {id:"mc5",a:"mandato",t:"Capacidad tecnica interna en cambio climatico demostrable (staff calificado, proyectos ejecutados)",ok:false,src:"GCF Climate Mandate - Technical Capacity"},
+  {id:"mc6",a:"mandato",t:"Experiencia gestionando financiamiento internacional (GEF, Fondo Adaptacion, PNUD, BID u otros fondos)",ok:false,src:"GCF Track Record - International Climate Finance"},
+  {id:"gg1",a:"gggi",t:"Acuerdo de cooperacion firmado entre GGGI y la institucion para el proceso de acreditacion GCF",ok:false,src:"GGGI Readiness Delivery Partner Agreement"},
+  {id:"gg2",a:"gggi",t:"Gap assessment institucional completado por GGGI: brechas fiduciarias, ESS, genero e integridad",ok:false,src:"GGGI Accreditation Support - Institutional Gap Assessment"},
+  {id:"gg3",a:"gggi",t:"Plan de cierre de brechas validado conjuntamente: institucion + GGGI + CNCCMDL con cronograma",ok:false,src:"GGGI-CNCCMDL-Entidad - Gap Closure Action Plan"},
+  {id:"gg4",a:"gggi",t:"Propuesta de Readiness Grant aprobada via CNCCMDL con GGGI como Delivery Partner certificado",ok:false,src:"GCF Readiness Programme - DAE/Country Window"},
+  {id:"gg5",a:"gggi",t:"Capacitacion del equipo tecnico completada: estandares GCF, IFC PS, genero, M&E y RAF 2025",ok:false,src:"GGGI Capacity Building - GCF Standards Training"},
+  {id:"gg6",a:"gggi",t:"Reporte mensual de avance al equipo GGGI con evidencias de cierre de brechas documentadas",ok:false,src:"GGGI Progress Reporting - Monthly Updates"},
+  {id:"gg7",a:"gggi",t:"Revision pre-aplicacion por GGGI del formulario completo Stage 1 antes de enviar al GCF",ok:false,src:"GGGI Pre-Application Review - Quality Assurance"},
+  {id:"gg8",a:"gggi",t:"Apoyo GGGI en desarrollo de Nota Concepto (CN) para pipeline GCF como primera accion post-acreditacion",ok:false,src:"GGGI Pipeline Development - CN Support"},
+];
+
+const PT0 = [
+  {id:"p1",title:"Implementar politica AML/CFT explicita",desc:"Desarrollar politica anti-lavado alineada con GAFI. Incluir clausulas AML/CFT en contratos con entidades ejecutoras (condicion frecuente del Panel GCF).",area:"fiduciario",pri:"alta",sta:"en_progreso",due:"2025-06-30",who:"Dpto. Legal / Cumplimiento",notes:[],at:new Date().toISOString()},
+  {id:"p2",title:"Disenar e implementar ESMS institucional",desc:"Crear Sistema de Gestion Ambiental y Social acorde a IFC Performance Standards 1-8. Incluir procedimientos de categorizacion A/B/C. Brecha mas comun.",area:"ess",pri:"alta",sta:"pendiente",due:"2025-09-30",who:"Dpto. Ambiental",notes:[],at:new Date().toISOString()},
+  {id:"p3",title:"Aprobar Politica de Genero con GAP",desc:"Redactar politica de genero y Plan de Accion de Genero con indicadores. Designar punto focal. Mas de 2/3 de entidades requirieron esta condicion GCF.",area:"genero",pri:"alta",sta:"pendiente",due:"2025-08-31",who:"Direccion Ejecutiva",notes:[],at:new Date().toISOString()},
+  {id:"p4",title:"Obtener carta de no-objecion del AND",desc:"Coordinar con CNCCMDL para obtener endoso formal. Requisito obligatorio antes de presentar solicitud GCF.",area:"gobernanza",pri:"alta",sta:"pendiente",due:"2025-07-15",who:"Direccion Ejecutiva",notes:[],at:new Date().toISOString()},
+  {id:"p5",title:"Redactar Nota Concepto (CN) para GCF",desc:"Desarrollar nota concepto alineada con las 8 areas de resultados del Fondo. Usar PPF si se necesita apoyo tecnico.",area:"mandato",pri:"media",sta:"en_progreso",due:"2025-10-15",who:"Equipo Tecnico",notes:[],at:new Date().toISOString()},
+  {id:"p6",title:"Establecer mecanismo de quejas GRM",desc:"Implementar GRM funcional institucional y por proyecto. Condicion explicita en 6+ entidades del Panel. Debe incluir acceso para terceros.",area:"ess",pri:"alta",sta:"pendiente",due:"2025-08-15",who:"Dpto. Ambiental / Legal",notes:[],at:new Date().toISOString()},
+  {id:"p7",title:"Adoptar politica Whistleblower",desc:"Politica de proteccion a denunciantes requerida por GCF. Cubrir proteccion anti-represalias para quienes reporten irregularidades.",area:"fiduciario",pri:"media",sta:"pendiente",due:"2025-09-30",who:"RRHH / Legal",notes:[],at:new Date().toISOString()},
+  {id:"p8",title:"Activar diagnostico Readiness con GGGI",desc:"Solicitar apoyo via GGGI ($4M disponibles desde COP30). Realizar gap assessment institucional. Primer paso recomendado por GCF.",area:"mandato",pri:"alta",sta:"en_progreso",due:"2025-06-15",who:"Dir. Ejecutiva / CNCCMDL",notes:[{t:"Coordinacion iniciada con GGGI en COP30 Belem",d:new Date().toISOString()}],at:new Date().toISOString()},
+];
+
+const PR0 = [
+  {id:"r1",title:"Eficiencia Energetica en Edificaciones Publicas",desc:"Instalacion de sistemas fotovoltaicos en 35 edificaciones publicas. Meta: reducir 12,000 tCO2e/ano y bajar 35% el gasto energetico.",sta:"activo",area:"Energia baja en emisiones",type:"mitigacion",inst:"Subvencion (Grant)",total:3500000,exec:1200000,gcf:2800000,cofin:700000,ini:"2023-01-01",fin:"2025-12-31",prov:"Santo Domingo",benef:45000,pctW:52,ghg:36000,risk:"B",part:"MOPC, CNE, BID",lec:"Requiere coordinacion interinstitucional temprana. Clausulas de M&E desde el contrato inicial.",at:new Date().toISOString()},
+  {id:"r2",title:"Manejo Integrado de Cuencas Hidrograficas",desc:"Restauracion de 5,000 ha de cuencas criticas en Cordillera Central. Practicas agroforestales y alertas tempranas ante inundaciones.",sta:"completado",area:"Bosques y uso de suelo",type:"adaptacion",inst:"Subvencion (Grant)",total:1800000,exec:1800000,gcf:0,cofin:1800000,ini:"2021-03-01",fin:"2024-02-28",prov:"La Vega",benef:12000,pctW:48,ghg:8500,risk:"B",part:"Medio Ambiente, FAO, Comunidades",lec:"Participacion comunitaria es clave. Consultas FPIC tomaron 3 meses adicionales no contemplados inicialmente.",at:new Date().toISOString()},
+  {id:"r3",title:"Sistema de Alerta Temprana - Costa Sur",desc:"Red de monitoreo hidrometeorologico y alerta temprana para 8 municipios de la costa sur vulnerables a huracanes.",sta:"pipeline",area:"Infraestructura resiliente",type:"adaptacion",inst:"Prestamo concesional",total:8500000,exec:0,gcf:6000000,cofin:2500000,ini:"2026-01-01",fin:"2029-12-31",prov:"Barahona",benef:95000,pctW:51,ghg:0,risk:"B",part:"ONAMET, COE, PNUD",lec:"",at:new Date().toISOString()},
+];
+
+const BM = [
+  {name:"PROFONANPE",country:"Peru",type:"Fondo Nacional de Conservacion",year:"2014",scale:"Mediana (USD 50M)",risk:"B",col:"#0B3B2E",lessons:["Fondo endowment como respaldo fiduciario solido","ESMS auditado independientemente desde el inicio","Alianza con MINAM fortalecio mandato climatico","NDC peruano integrado en toda la cartera"]},
+  {name:"Dept. of Environment",country:"Antigua y Barbuda (SIDS)",type:"Entidad gubernamental directa",year:"2016",scale:"Micro (USD 10M)",risk:"C",col:"#1C4E7A",lessons:["Beneficiaron exencion de tarifas como SIDS","4 anos de Readiness Grants para preparacion","Acceso directo = mayor apropiacion nacional","Desafio: auditoria interna con menos de 20 empleados"]},
+  {name:"Fundacion Avina",country:"Latinoamerica (Regional)",type:"Primera OSC civil acreditada en LAC",year:"2016",scale:"Micro (USD 10M)",risk:"C",col:"#6B4C9A",lessons:["Primera OSC latinoamericana acreditada en GCF","Politica de genero preexistente fue ventaja clave","GRM publicado en web antes de la acreditacion","Track record: 20+ anos de proyectos documentados"]},
+  {name:"BELIZE MoFED",country:"Belice (SIDS)",type:"Ministerio de Finanzas y Desarrollo",year:"2019",scale:"Pequena (USD 50M)",risk:"B",col:"#B45309",lessons:["9 Readiness Grants usados antes de acreditar","Creo Unidad de Finanzas Climaticas dedicada","Politicas salvaguardas adaptadas al contexto SIDS","Acceso a multiples fondos climaticos via misma unidad"]},
+  {name:"CABEI / BCIE",country:"Centroamerica (Regional)",type:"Banco de Desarrollo Regional",year:"2015",scale:"Grande (USD 250M+)",risk:"A",col:"#1A5C45",lessons:["Marco fiduciario bancario acelero el proceso","ESMS preexistente facilito categorizacion Cat. A","Desafios en perspectiva de genero en cartera privada","Usa SAP para proyectos pequenos de acceso rapido"]},
+  {name:"BNDES",country:"Brasil",type:"Banco Nacional de Desarrollo",year:"2015",scale:"Grande (USD 250M+)",risk:"A",col:"#374151",lessons:["Acreditacion GEF previa permitio fast-track al GCF","ESMS robusto con decadas de track record","Capacidad para movilizar financiamiento privado","Integracion NDC-E&S desde diseno del portafolio"]},
+];
+
+const ML = [
+  {ph:"Fase 0",id:"m1",title:"Diagnostico de Brechas (Gap Assessment)",desc:"Evaluacion completa de brechas fiduciarias, ESS y gobernanza. Herramienta Readiness GCF con apoyo GGGI.",mo:"0-3",sta:"activo",icon:"🔍",nota:""},
+  {ph:"Fase 1",id:"m2",title:"No-Objecion AND (CNCCMDL)",desc:"Formalizar proceso con la Autoridad Nacional Designada de RD para obtener carta de no-objecion formal.",mo:"1-4",sta:"pendiente",icon:"📜",nota:""},
+  {ph:"Fase 1",id:"m3",title:"Desarrollo de Politicas Criticas",desc:"Implementar: Politica Genero + GAP, AML/CFT, Whistleblower, ESMS, GRM, Information Disclosure.",mo:"3-9",sta:"pendiente",icon:"📋",nota:""},
+  {ph:"Fase 2",id:"m4",title:"Portafolio y Track Record",desc:"Documentar proyectos con metricas E&S. Preparar al menos 1 Nota Concepto GCF alineada con NDC-RD.",mo:"6-12",sta:"pendiente",icon:"📁",nota:""},
+  {ph:"Fase 2",id:"m5",title:"Capacitacion del Equipo con GGGI",desc:"Formacion en estandares GCF, IFC PS, genero, M&E y reporting. Usar fondos Readiness GGGI/CNCCMDL.",mo:"4-10",sta:"pendiente",icon:"🎓",nota:""},
+  {ph:"Fase 3",id:"m6",title:"Revision Legal Institucional",desc:"Auditoria legal completa: estatutos, mandato, procedimientos, contratos tipo.",mo:"8-12",sta:"pendiente",icon:"⚖",nota:""},
+  {ph:"Fase 3",id:"m7",title:"Pre-screening GCF (RAF 2025)",desc:"Completar cuestionario de pre-screening en plataforma GCF. Primer paso formal bajo nuevo RAF B.42/13.",mo:"10-14",sta:"pendiente",icon:"🔐",nota:""},
+  {ph:"Fase 3",id:"m8",title:"Solicitud Formal Stage 1",desc:"Presentar formulario al Secretariado GCF. Completeness check y multiples rondas de Q&A con Secretariado.",mo:"12-15",sta:"pendiente",icon:"📬",nota:""},
+  {ph:"Fase 4",id:"m9",title:"Panel de Acreditacion Stage 2",desc:"Revision por el Accreditation Panel. Responder rondas tecnicas. Recomendacion a la Junta GCF.",mo:"15-24",sta:"pendiente",icon:"🔎",nota:""},
+  {ph:"Fase 4",id:"m10",title:"Decision de la Junta GCF",desc:"Aprobacion de acreditacion. Posibles condiciones a cumplir antes del AMA.",mo:"22-26",sta:"pendiente",icon:"✅",nota:""},
+  {ph:"Fase 5",id:"m11",title:"Firma del AMA",desc:"Negociar y firmar el Accreditation Master Agreement. Primera propuesta de financiamiento GCF.",mo:"24-28",sta:"pendiente",icon:"🤝",nota:""},
+];
+
+
+function fmtUSD(n) {
+  var v = Number(n) || 0;
+  if (v >= 1000000) return "USD " + (v/1000000).toFixed(1) + "M";
+  if (v >= 1000) return "USD " + Math.round(v/1000) + "K";
+  return "USD " + v;
+}
+
+function Badge(props) {
+  return React.createElement("span", {
+    style:{fontSize:props.size||11,background:props.bg,color:props.color,padding:"2px 8px",borderRadius:10,fontWeight:700,whiteSpace:"nowrap",display:"inline-block"}
+  }, props.text);
+}
+
+var INP = {width:"100%",padding:"7px 10px",border:"1px solid #D1D5DB",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
+var SEL = {width:"100%",padding:"7px 10px",border:"1px solid #D1D5DB",borderRadius:6,fontSize:12,background:"white",fontFamily:"inherit",boxSizing:"border-box"};
+
+function Fld(props) {
+  return React.createElement("div", {style:{marginBottom:12}},
+    React.createElement("label", {style:{fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:3}}, props.label),
+    props.children
+  );
+}
+
+function Modal(props) {
+  return React.createElement("div", {
+    style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16},
+    onClick:props.onClose
+  },
+    React.createElement("div", {
+      style:{background:"white",borderRadius:12,padding:24,width:"100%",maxWidth:props.wide?720:520,maxHeight:"92vh",overflowY:"auto"},
+      onClick:function(e){e.stopPropagation();}
+    }, props.children)
+  );
+}
+
+
+function App() {
+  var [apiKey, setApiKey] = useState("");
+  var [keyInput, setKeyInput] = useState("");
+  var [ready, setReady] = useState(false);
+
+  useEffect(function(){
+    var k = localStorage.getItem("gcf_apikey") || "";
+    if(k){ setApiKey(k); setReady(true); }
+  },[]);
+
+  function saveKey() {
+    var k = keyInput.trim();
+    if(!k) return;
+    localStorage.setItem("gcf_apikey", k);
+    setApiKey(k); setReady(true);
+  }
+
+  if(!ready) return (
+    <div style={{minHeight:"100vh",background:"#0B3B2E",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{background:"white",borderRadius:16,padding:40,maxWidth:480,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:12}}>🌿</div>
+        <div style={{fontSize:22,fontWeight:700,color:"#0B3B2E",marginBottom:6}}>GCF Tracker</div>
+        <div style={{fontSize:13,color:"#6B7A74",marginBottom:24,lineHeight:1.6}}>Sistema de Seguimiento para Acreditacion<br/><strong>Fondo Verde del Clima - Republica Dominicana</strong></div>
+        <div style={{background:"#FEF3E2",border:"1px solid #C69B2A",borderRadius:10,padding:16,marginBottom:20,textAlign:"left",fontSize:12,color:"#78570A",lineHeight:1.7}}>
+          Para usar el <strong>Asesor IA</strong> y el <strong>analisis de documentos</strong>, necesitas una API key de Anthropic.<br/>
+          Obtenla en <a href="https://console.anthropic.com" target="_blank" style={{color:"#0B3B2E",fontWeight:700}}>console.anthropic.com</a><br/>
+          La clave se guarda solo en tu navegador (localStorage).
+        </div>
+        <div style={{textAlign:"left",marginBottom:12}}>
+          <label style={{fontSize:11,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>Anthropic API Key</label>
+          <input type="password" value={keyInput} onChange={function(e){setKeyInput(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")saveKey();}} placeholder="sk-ant-api03-..." style={{width:"100%",padding:"10px 12px",border:"1px solid #D1D5DB",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        <button onClick={saveKey} style={{width:"100%",background:"#0B3B2E",color:"white",border:"none",padding:"12px",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:14,marginBottom:12}}>Ingresar y Abrir la App</button>
+        <div style={{fontSize:11,color:"#9CA3AF"}}>El Checklist, Vitacora, Proyectos y Hoja de Ruta funcionan sin API key.</div>
+      </div>
+    </div>
+  );
+
+  return <AppWithDocs apiKey={apiKey}/>;
+}
+
+function AppWithDocs(p) {
+  var apiKey = p.apiKey;
+  var AREAS_LOCAL = [
+    {id:"prescreening",label:"Pre-screening RAF",color:"#374151",bg:"#F3F4F6"},
+    {id:"gobernanza",label:"Gobernanza Corporativa",color:"#1C4E7A",bg:"#E8F1F9"},
+    {id:"fiduciario",label:"Gestion Financiera",color:"#0B3B2E",bg:"#E6F0EC"},
+    {id:"integridad",label:"Integridad",color:"#1A5C45",bg:"#EAF3EE"},
+    {id:"ess",label:"Salvaguardas ESS",color:"#2D7A5E",bg:"#EDF7F3"},
+    {id:"genero",label:"Politica de Genero",color:"#6B4C9A",bg:"#F3EDF9"},
+    {id:"mandato",label:"Mandato y Track Record",color:"#B45309",bg:"#FEF3E2"},
+    {id:"gggi",label:"Proceso con GGGI",color:"#059669",bg:"#D1FAE5"},
+  ];
+  var DOC_STATUS = {
+    borrador: {l:"Borrador",c:"#6B7280",b:"#F3F4F6"},
+    revision: {l:"En revision",c:"#D97706",b:"#FEF3C7"},
+    aprobado: {l:"Aprobado",c:"#059669",b:"#D1FAE5"},
+    enviado:  {l:"Enviado GCF",c:"#2563EB",b:"#DBEAFE"},
+  };
+
+  var [docs, setDocs]             = useState([]);
+  var [docAnalysis, setDocAnalysis] = useState({});
+  var [docUploadArea, setDocUploadArea]     = useState("gobernanza");
+  var [docUploadDesc, setDocUploadDesc]     = useState("");
+  var [docUploadStatus, setDocUploadStatus] = useState("borrador");
+  var [docUploadErr, setDocUploadErr]       = useState("");
+  var [docsLoaded, setDocsLoaded] = useState(false);
+
+  useEffect(function(){
+    lsGet("gcf_docs_meta").then(function(r){
+      if(!r){ setDocsLoaded(true); return; }
+      try {
+        var meta = JSON.parse(r.value);
+        Promise.all(meta.map(function(d){
+          return lsGet("gcf_doc_"+d.id).then(function(r2){ return Object.assign({},d,{b64:r2?r2.value:null}); });
+        })).then(function(full){ setDocs(full); setDocsLoaded(true); });
+      } catch(e){ setDocsLoaded(true); }
+    });
+  },[]);
+
+  useEffect(function(){
+    if(!docsLoaded) return;
+    lsSet("gcf_docs_meta", JSON.stringify(docs.map(function(d){
+      return {id:d.id,name:d.name,type:d.type,size:d.size,area:d.area,desc:d.desc,status:d.status,uploadedAt:d.uploadedAt};
+    })));
+  },[docs,docsLoaded]);
+
+  function handleUpload(e) {
+    var file = e.target.files[0];
+    if(!file) return;
+    setDocUploadErr("");
+    if(file.size > 4*1024*1024){ setDocUploadErr("Archivo demasiado grande (max 4MB). Para PDFs grandes divide por secciones."); return; }
+    var ok = ["application/pdf","image/png","image/jpeg","image/jpg","image/webp","image/gif","text/plain"];
+    if(ok.indexOf(file.type)<0){ setDocUploadErr("Formato no soportado. Usa PDF, PNG, JPG, WEBP o TXT. Para DOCX guarda como PDF."); return; }
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var b64 = ev.target.result.split(",")[1];
+      var id = "doc"+Date.now();
+      lsSet("gcf_doc_"+id, b64);
+      setDocs(function(prev){ return prev.concat([{id:id,name:file.name,type:file.type,size:file.size,area:docUploadArea,desc:docUploadDesc,status:docUploadStatus,uploadedAt:new Date().toISOString(),b64:b64}]); });
+      setDocUploadDesc("");
+      e.target.value = "";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function deleteDoc(id) {
+    setDocs(function(p){ return p.filter(function(d){ return d.id!==id; }); });
+    try{ localStorage.removeItem("gcf_doc_"+id); }catch(e){}
+    setDocAnalysis(function(p){ var n=Object.assign({},p); delete n[id]; return n; });
+  }
+
+  function analyzeDoc(doc) {
+    if(!apiKey){ alert("Configura tu API key de Anthropic primero."); return; }
+    if(!doc.b64){ alert("Vuelve a subir el archivo para analizarlo."); return; }
+    setDocAnalysis(function(p){ return Object.assign({},p,{[doc.id]:{loading:true,text:""}}); });
+    var areaObj = AREAS_LOCAL.find(function(a){ return a.id===doc.area; })||{label:doc.area};
+    var sys = "Eres experto revisor de documentos para acreditacion GCF. Institucion de RD con apoyo de GGGI. RAF B.42/13 (oct 2025). Area: "+areaObj.label+"\n\nAnaliza el documento y da:\n1. FORTALEZAS: que cubre bien segun estandares GCF/RAF\n2. BRECHAS: que falta o es insuficiente (clausulas, secciones, politicas concretas)\n3. RECOMENDACIONES: cambios especificos con referencias a requisitos GCF\n4. PRIORIDADES: las 3 mejoras mas urgentes para la acreditacion\nResponde en espanol, se muy especifico.";
+    var isImg = doc.type.indexOf("image/")===0;
+    var isTxt = doc.type==="text/plain";
+    var userContent;
+    if(isTxt){
+      try{ var t=atob(doc.b64); userContent=[{type:"text",text:"Documento '"+doc.name+"':\n\n"+t+"\n\nAnaliza para el area de "+areaObj.label+(doc.desc?". Contexto: "+doc.desc:"")+"."} ]; }
+      catch(e){ userContent=[{type:"text",text:"Error al leer el archivo."}]; }
+    } else if(isImg){
+      userContent=[{type:"image",source:{type:"base64",media_type:doc.type,data:doc.b64}},{type:"text",text:"Analiza este documento '"+doc.name+"' para el area de "+areaObj.label+(doc.desc?". Contexto: "+doc.desc:"")+"."} ];
+    } else {
+      userContent=[{type:"document",source:{type:"base64",media_type:"application/pdf",data:doc.b64}},{type:"text",text:"Analiza este documento '"+doc.name+"' para el area de "+areaObj.label+(doc.desc?". Contexto: "+doc.desc:"")+"."} ];
+    }
+    fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:sys,messages:[{role:"user",content:userContent}]})
+    }).then(function(r){return r.json();}).then(function(d){
+      var txt=(d.content&&d.content[0]&&d.content[0].text)?d.content[0].text:"Error: "+(d.error?JSON.stringify(d.error):"desconocido");
+      setDocAnalysis(function(p){return Object.assign({},p,{[doc.id]:{loading:false,text:txt}});});
+    }).catch(function(e){
+      setDocAnalysis(function(p){return Object.assign({},p,{[doc.id]:{loading:false,text:"Error de conexion: "+e.message}});});
+    });
+  }
+
+  function fmtSize(b){ if(b>=1048576) return (b/1048576).toFixed(1)+" MB"; if(b>=1024) return Math.round(b/1024)+" KB"; return b+" B"; }
+  function fileIconFn(t){ if(t==="application/pdf") return "📕"; if(t&&t.indexOf("image/")===0) return "🖼"; return "📄"; }
+
+  return <GCFApp apiKey={apiKey}
+    docs={docs} docAnalysis={docAnalysis} analyzeDoc={analyzeDoc} deleteDoc={deleteDoc}
+    fmtSize={fmtSize} fileIconFn={fileIconFn} DOC_STATUS={DOC_STATUS} AREAS_LOCAL={AREAS_LOCAL}
+    docUploadArea={docUploadArea} setDocUploadArea={setDocUploadArea}
+    docUploadDesc={docUploadDesc} setDocUploadDesc={setDocUploadDesc}
+    docUploadStatus={docUploadStatus} setDocUploadStatus={setDocUploadStatus}
+    docUploadErr={docUploadErr} handleUpload={handleUpload}
+  />;
+}
+
+function GCFApp(props) {
+
+  var apiKey = props.apiKey || "";
+  var docs = props.docs || [];
+  var docAnalysis = props.docAnalysis || {};
+  var analyzeDoc = props.analyzeDoc || function(){};
+  var deleteDoc = props.deleteDoc || function(){};
+  var fmtSize = props.fmtSize || function(){return "";};
+  var fileIconFn = props.fileIconFn || function(){return "📄";};
+  var DOC_STATUS = props.DOC_STATUS || {};
+  var docUploadArea = props.docUploadArea || "gobernanza";
+  var setDocUploadArea = props.setDocUploadArea || function(){};
+  var docUploadDesc = props.docUploadDesc || "";
+  var setDocUploadDesc = props.setDocUploadDesc || function(){};
+  var docUploadStatus = props.docUploadStatus || "borrador";
+  var setDocUploadStatus = props.setDocUploadStatus || function(){};
+  var docUploadErr = props.docUploadErr || "";
+  var handleUpload = props.handleUpload || function(){};
+
+  var [view, setView]         = useState("dashboard");
+  var [pts, setPts]           = useState(PT0);
+  var [chk, setChk]           = useState(CK0);
+  var [projs, setProjs]       = useState(PR0);
+  var [miles, setMiles]       = useState(ML);
+  var [msgs, setMsgs]         = useState([{role:"assistant",text:"Hola! Soy tu asesor de acreditacion GCF para Republica Dominicana.\n\nSe que GGGI es tu Readiness Delivery Partner - un aliado clave. Conozco el RAF 2025, el nuevo pre-screening, tu portafolio y lecciones de 6 entidades acreditadas en LAC y SIDS.\n\nPor donde empezamos?"}]);
+  var [aiIn, setAiIn]         = useState("");
+  var [aiLoad, setAiLoad]     = useState(false);
+  var [showPtF, setShowPtF]   = useState(false);
+  var [editPt, setEditPt]     = useState(null);
+  var [showPrF, setShowPrF]   = useState(false);
+  var [editPr, setEditPr]     = useState(null);
+  var [noteFor, setNoteFor]   = useState(null);
+  var [noteT, setNoteT]       = useState("");
+  var [fArea, setFArea]       = useState("all");
+  var [fSta, setFSta]         = useState("all");
+  var [fPri, setFPri]         = useState("all");
+  var [actPr, setActPr]       = useState(null);
+  var [loaded, setLoaded]     = useState(false);
+  var [editChk, setEditChk]   = useState(null);
+  var [chkForm, setChkForm]   = useState({t:"",src:"",nota:""});
+  var [showAddChk, setShowAddChk] = useState(null);
+  var [newChkT, setNewChkT]   = useState("");
+  var [editML, setEditML]     = useState(null);
+  var [showMLF, setShowMLF]   = useState(false);
+  var [mlForm, setMlForm]     = useState({ph:"Fase 1",title:"",desc:"",mo:"",sta:"pendiente",icon:"📋",nota:""});
+  var aiRef = useRef(null);
+
+  var ptF0 = {title:"",desc:"",area:"fiduciario",pri:"media",sta:"pendiente",due:"",who:""};
+  var prF0 = {title:"",desc:"",sta:"pipeline",area:"Energia baja en emisiones",type:"mitigacion",inst:"Subvencion (Grant)",total:"",exec:"",gcf:"",cofin:"",ini:"",fin:"",prov:"Santo Domingo",benef:"",pctW:"",ghg:"",risk:"B",part:"",lec:""};
+  var [ptForm, setPtForm] = useState(ptF0);
+  var [prForm, setPrForm] = useState(prF0);
+
+  useEffect(function() {
+    (function() {
+      lsGet("gcf5_pts").then(function(p){ if(p) setPts(JSON.parse(p.value)); }).catch(function(){});
+      lsGet("gcf5_chk").then(function(c){ if(c) setChk(JSON.parse(c.value)); }).catch(function(){});
+      lsGet("gcf5_prj").then(function(j){ if(j) setProjs(JSON.parse(j.value)); }).catch(function(){});
+      lsGet("gcf5_ml").then(function(l){ if(l) setMiles(JSON.parse(l.value)); }).catch(function(){});
+      lsGet("gcf5_ai").then(function(m){ if(m) setMsgs(JSON.parse(m.value)); }).catch(function(){});
+      setLoaded(true);
+    })();
+  }, []);
+
+  useEffect(function(){ if(loaded) lsSet("gcf5_pts", JSON.stringify(pts)); }, [pts, loaded]);
+  useEffect(function(){ if(loaded) lsSet("gcf5_chk", JSON.stringify(chk)); }, [chk, loaded]);
+  useEffect(function(){ if(loaded) lsSet("gcf5_prj", JSON.stringify(projs)); }, [projs, loaded]);
+  useEffect(function(){ if(loaded) lsSet("gcf5_ml",  JSON.stringify(miles)); }, [miles, loaded]);
+  useEffect(function(){ if(loaded) lsSet("gcf5_ai",  JSON.stringify(msgs));  }, [msgs, loaded]);
+  useEffect(function(){ if(aiRef.current) aiRef.current.scrollIntoView({behavior:"smooth"}); }, [msgs]);
+
+  var donePts  = pts.filter(function(p){ return p.sta==="completado"||p.sta==="cerrado"; }).length;
+  var doneChk  = chk.filter(function(c){ return c.ok; }).length;
+  var ready    = Math.round(((donePts/Math.max(pts.length,1))*0.35 + (doneChk/chk.length)*0.65)*100);
+  var totFund  = projs.reduce(function(a,p){ return a+(Number(p.gcf)||0); }, 0);
+  var totBenef = projs.reduce(function(a,p){ return a+(Number(p.benef)||0); }, 0);
+  var totGHG   = projs.reduce(function(a,p){ return a+(Number(p.ghg)||0); }, 0);
+  var totCoFin = projs.reduce(function(a,p){ return a+(Number(p.cofin)||0); }, 0);
+  var crits    = pts.filter(function(p){ return p.pri==="alta" && p.sta!=="completado" && p.sta!=="cerrado"; });
+  var filtPts  = pts.filter(function(p){
+    return (fArea==="all"||p.area===fArea) && (fSta==="all"||p.sta===fSta) && (fPri==="all"||p.pri===fPri);
+  });
+
+  var areaBar = AREAS.map(function(a){
+    var it = chk.filter(function(c){ return c.a===a.id; });
+    var d  = it.filter(function(c){ return c.ok; }).length;
+    return {area:a.short, pct:it.length?Math.round((d/it.length)*100):0, color:a.color};
+  });
+  var radarD = AREAS.map(function(a){
+    var it = chk.filter(function(c){ return c.a===a.id; });
+    var d  = it.filter(function(c){ return c.ok; }).length;
+    return {area:a.short, score:it.length?Math.round((d/it.length)*100):0};
+  });
+
+  function savePt() {
+    if(!ptForm.title.trim()) return;
+    if(editPt) {
+      setPts(function(ps){ return ps.map(function(p){ return p.id===editPt.id ? Object.assign({},p,ptForm) : p; }); });
+    } else {
+      setPts(function(ps){ return ps.concat([Object.assign({},ptForm,{id:"p"+Date.now(),notes:[],at:new Date().toISOString()})]); });
+    }
+    setShowPtF(false); setEditPt(null); setPtForm(ptF0);
+  }
+
+  function openEditPt(pt) {
+    setEditPt(pt);
+    setPtForm({title:pt.title,desc:pt.desc,area:pt.area,pri:pt.pri,sta:pt.sta,due:pt.due||"",who:pt.who||""});
+    setShowPtF(true);
+  }
+
+  function addNote(id) {
+    if(!noteT.trim()) return;
+    setPts(function(ps){ return ps.map(function(p){
+      if(p.id!==id) return p;
+      var nn = (p.notes||[]).concat([{t:noteT,d:new Date().toISOString()}]);
+      return Object.assign({},p,{notes:nn});
+    }); });
+    setNoteT(""); setNoteFor(null);
+  }
+
+  function savePr() {
+    if(!prForm.title.trim()) return;
+    if(editPr) {
+      setProjs(function(ps){ return ps.map(function(p){ return p.id===editPr.id ? Object.assign({},p,prForm) : p; }); });
+    } else {
+      setProjs(function(ps){ return ps.concat([Object.assign({},prForm,{id:"r"+Date.now(),at:new Date().toISOString()})]); });
+    }
+    setShowPrF(false); setEditPr(null); setPrForm(prF0);
+  }
+
+  function openEditPr(pr) {
+    setEditPr(pr);
+    setPrForm({title:pr.title,desc:pr.desc||"",sta:pr.sta,area:pr.area,type:pr.type,inst:pr.inst,total:pr.total||"",exec:pr.exec||"",gcf:pr.gcf||"",cofin:pr.cofin||"",ini:pr.ini||"",fin:pr.fin||"",prov:pr.prov||"Santo Domingo",benef:pr.benef||"",pctW:pr.pctW||"",ghg:pr.ghg||"",risk:pr.risk||"B",part:pr.part||"",lec:pr.lec||""});
+    setShowPrF(true);
+  }
+
+  function saveChk() {
+    if(!chkForm.t.trim()) return;
+    if(editChk) {
+      setChk(function(cl){ return cl.map(function(c){ return c.id===editChk.id ? Object.assign({},c,{t:chkForm.t,src:chkForm.src,nota:chkForm.nota}) : c; }); });
+    }
+    setEditChk(null);
+  }
+
+  function addChkItem(areaId) {
+    if(!newChkT.trim()) return;
+    var newItem = {id:"cx"+Date.now(),a:areaId,t:newChkT,ok:false,src:"Personalizado",nota:""};
+    setChk(function(cl){ return cl.concat([newItem]); });
+    setNewChkT(""); setShowAddChk(null);
+  }
+
+  function saveML() {
+    if(!mlForm.title.trim()) return;
+    if(editML) {
+      setMiles(function(ms){ return ms.map(function(m){ return m.id===editML.id ? Object.assign({},m,mlForm) : m; }); });
+    } else {
+      setMiles(function(ms){ return ms.concat([Object.assign({},mlForm,{id:"mx"+Date.now()})]); });
+    }
+    setShowMLF(false); setEditML(null); setMlForm({ph:"Fase 1",title:"",desc:"",mo:"",sta:"pendiente",icon:"📋",nota:""});
+  }
+
+  function openEditML(m) {
+    setEditML(m);
+    setMlForm({ph:m.ph,title:m.title,desc:m.desc,mo:m.mo,sta:m.sta,icon:m.icon,nota:m.nota||""});
+    setShowMLF(true);
+  }
+
+  function cycleMLSta(id) {
+    setMiles(function(ms){ return ms.map(function(m){
+      if(m.id!==id) return m;
+      var next = m.sta==="pendiente"?"activo":m.sta==="activo"?"completado":"pendiente";
+      return Object.assign({},m,{sta:next});
+    }); });
+  }
+
+  function sendAI() {
+    if(!aiIn.trim() || aiLoad) return;
+    var msg = aiIn.trim(); setAiIn("");
+    var newMsgs = msgs.concat([{role:"user",text:msg}]);
+    setMsgs(newMsgs); setAiLoad(true);
+    var aStats = AREAS.map(function(a){ var it=chk.filter(function(c){return c.a===a.id;}); var d=it.filter(function(c){return c.ok;}).length; return a.short+":"+d+"/"+it.length; }).join(", ");
+    var pSummary = projs.map(function(p){ return '"'+p.title+'" ('+p.area+", "+p.sta+", "+fmtUSD(p.total)+", "+(p.benef||0)+" benef.)"; }).join(" | ");
+    var sys = "Eres experto asesor de acreditacion GCF especializado en RD, SIDS del Caribe y procesos GGGI.\n\n"
+      + "ESTADO INSTITUCIONAL: Readiness "+ready+"% | Puntos mejora: "+donePts+"/"+pts.length+" | Checklist: "+doneChk+"/"+chk.length+" | "+aStats+"\n"
+      + "CRITICOS: "+(crits.map(function(p){return p.title;}).join("; ")||"ninguno")+"\n"
+      + "PORTAFOLIO: "+pSummary+"\n"
+      + "CONTEXTO RD:\n"
+      + "- AND de RD: CNCCMDL (autoridad que nomina y avala)\n"
+      + "- GGGI es el Readiness Delivery Partner que apoya la acreditacion\n"
+      + "- RAF B.42/13 vigente desde oct 2025: proceso de 5 pasos (nominacion, pre-screening, aplicacion, revision, aprobacion Junta)\n"
+      + "- Dos ventanas de acreditacion por ano. Pre-screening antes del 27 mayo 2026 para ventana jul 2026\n"
+      + "- Fast-track disponible si acreditada por GEF, AF o EU DG INTPA\n"
+      + "- Exenciones de tarifas como SIDS/LDC disponibles\n"
+      + "- NDC-RD: meta 27% reduccion emisiones al 2030\n"
+      + "- Readiness grants: hasta $7M por pais en 4 anos (ventana pais + ventana DAE)\n"
+      + "COMO APOYA GGGI:\n"
+      + "- Gap assessment institucional (fiduciario, ESS, genero, integridad)\n"
+      + "- Desarrollo de politicas criticas y manuales\n"
+      + "- Capacitacion del equipo en estandares GCF/IFC PS\n"
+      + "- Revision pre-aplicacion del formulario Stage 1\n"
+      + "- Apoyo en desarrollo de Nota Concepto (CN) para pipeline post-acreditacion\n"
+      + "BENCHMARK ENTIDADES ACREDITADAS: PROFONANPE-Peru, Antigua DoE (SIDS, 4 anos prep), Avina (OSC LAC, genero preexistente), Belice MoFED (9 Readiness Grants), CABEI (fast-track bancario), BNDES\n"
+      + "CONDICIONES FRECUENTES PANEL GCF: 2/3 entidades requirieron politica genero ANTES de acreditar | +50% condiciones ESS/ESMS | AML/CFT debe estar en contratos con ejecutores | GRM independiente funcional documentado | ESMS auditoria independiente post-desembolso\n"
+      + "Responde en espanol, concreto, accionable, con bullets especificos, ~300 palabras max.";
+    fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:newMsgs.map(function(m){return {role:m.role==="assistant"?"assistant":"user",content:m.text};})})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      var txt = (d.content && d.content[0] && d.content[0].text) ? d.content[0].text : "Error al procesar.";
+      setMsgs(function(prev){ return prev.concat([{role:"assistant",text:txt}]); });
+      setAiLoad(false);
+    }).catch(function(){
+      setMsgs(function(prev){ return prev.concat([{role:"assistant",text:"Error de conexion."}]); });
+      setAiLoad(false);
+    });
+  }
+
+  var sc = ready>=70?"#4ADE80":ready>=40?"#FCD34D":"#FCA5A5";
+  var NAV = [{id:"dashboard",l:"Dashboard",i:"📊"},{id:"vitacora",l:"Vitacora",i:"📝"},{id:"proyectos",l:"Proyectos",i:"🗂"},{id:"checklist",l:"Checklist",i:"✅"},{id:"benchmark",l:"Benchmark",i:"🏆"},{id:"roadmap",l:"Hoja de Ruta",i:"🗺"},{id:"ai",l:"Asesor IA",i:"🤖"},{id:"documentos",l:"Documentos",i:"📎"}];
+
+  return (
+    <div style={{fontFamily:"Trebuchet MS,Georgia,sans-serif",background:C.sand,minHeight:"100vh",color:C.text}}>
+
+      <div style={{background:C.forest,color:"white",padding:"13px 22px",display:"flex",alignItems:"center",gap:14,borderBottom:"3px solid "+C.gold}}>
+        <div style={{fontSize:26}}>🌿</div>
+        <div>
+          <div style={{fontWeight:700,fontSize:15}}>GCF Tracker - Republica Dominicana</div>
+          <div style={{fontSize:10,color:"#A8C5B8",marginTop:1}}>Sistema de Seguimiento - Fondo Verde del Clima - CNCCMDL</div>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",gap:22,alignItems:"center"}}>
+          <div style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:700,color:sc}}>{ready}%</div><div style={{fontSize:9,color:"#A8C5B8"}}>Preparacion</div></div>
+          <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#FCD34D"}}>{fmtUSD(totFund)}</div><div style={{fontSize:9,color:"#A8C5B8"}}>Portafolio GCF</div></div>
+          <div style={{textAlign:"center"}}><div style={{fontSize:16,fontWeight:700,color:"#86EFAC"}}>{projs.filter(function(p){return p.sta==="activo";}).length} activos</div><div style={{fontSize:9,color:"#A8C5B8"}}>Proyectos</div></div>
+        </div>
+      </div>
+
+      <div style={{background:"#0F4D3B",display:"flex",padding:"0 14px",overflowX:"auto"}}>
+        {NAV.map(function(n){
+          return <button key={n.id} onClick={function(){setView(n.id);}} style={{background:view===n.id?C.gold:"transparent",color:view===n.id?C.forest:"#C8DDD6",border:"none",padding:"8px 13px",cursor:"pointer",fontSize:11,fontWeight:view===n.id?700:400,borderRadius:"5px 5px 0 0",display:"flex",alignItems:"center",gap:4,marginTop:4,whiteSpace:"nowrap"}}><span style={{fontSize:13}}>{n.i}</span>{n.l}</button>;
+        })}
+      </div>
+
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 18px"}}>
+
+        {view==="dashboard" && (
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:9,marginBottom:18}}>
+              {[
+                {l:"Readiness GCF",v:ready+"%",s:"score global",i:"🎯",c:ready>=70?"#059669":ready>=40?"#D97706":"#DC2626"},
+                {l:"Puntos Mejora",v:pts.length,s:donePts+" completados",i:"📝",c:C.forest},
+                {l:"Checklist GCF",v:doneChk+"/"+chk.length,s:Math.round((doneChk/chk.length)*100)+"% cubierto",i:"✅",c:C.mid},
+                {l:"Proyectos",v:projs.length,s:projs.filter(function(p){return p.sta==="activo";}).length+" activos",i:"🗂",c:"#1C4E7A"},
+                {l:"Portafolio GCF",v:fmtUSD(totFund),s:"financ. climatico",i:"💰",c:"#B45309"},
+                {l:"Beneficiarios",v:totBenef>=1000?Math.round(totBenef/1000)+"K":totBenef,s:"personas totales",i:"👥",c:"#6B4C9A"},
+                {l:"GHG reducido",v:(totGHG>=1000?Math.round(totGHG/1000)+"K":totGHG)+" tCO2e",s:"portafolio",i:"🌡",c:"#059669"},
+                {l:"Criticos",v:crits.length,s:"alta prioridad",i:"🔴",c:"#DC2626"},
+              ].map(function(k,i){
+                return <div key={i} style={{background:C.white,borderRadius:9,padding:"12px 10px",border:"1px solid "+C.bord,borderTop:"3px solid "+k.c}}>
+                  <div style={{fontSize:17}}>{k.i}</div>
+                  <div style={{fontSize:20,fontWeight:700,color:k.c,marginTop:2}}>{k.v}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:"#374151",marginTop:2}}>{k.l}</div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:1}}>{k.s}</div>
+                </div>;
+              })}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div style={{background:C.white,borderRadius:10,padding:"16px 18px",border:"1px solid "+C.bord}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.forest,marginBottom:10}}>Cobertura por Pilar GCF</div>
+                <ResponsiveContainer width="100%" height={210}>
+                  <RadarChart data={radarD}>
+                    <PolarGrid stroke="#E5E7EB"/>
+                    <PolarAngleAxis dataKey="area" tick={{fill:C.muted,fontSize:9}}/>
+                    <Radar dataKey="score" stroke={C.forest} fill={C.forest} fillOpacity={0.18}/>
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{background:C.white,borderRadius:10,padding:"16px 18px",border:"1px solid "+C.bord}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.forest,marginBottom:10}}>% Completado por Pilar</div>
+                <ResponsiveContainer width="100%" height={210}>
+                  <BarChart data={areaBar} layout="vertical">
+                    <XAxis type="number" domain={[0,100]} tick={{fontSize:9}} tickFormatter={function(v){return v+"%";}}/>
+                    <YAxis dataKey="area" type="category" width={58} tick={{fontSize:9}}/>
+                    <Tooltip formatter={function(v){return v+"%";}}/>
+                    <Bar dataKey="pct" radius={[0,4,4,0]}>
+                      {areaBar.map(function(_,i){ return <Cell key={i} fill={AREAS[i].color}/>; })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <div style={{background:C.white,borderRadius:10,padding:"16px 18px",border:"1px solid "+C.bord}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.forest,marginBottom:10}}>Estado por Pilar</div>
+                {AREAS.map(function(area){
+                  var it=chk.filter(function(c){return c.a===area.id;});
+                  var d=it.filter(function(c){return c.ok;}).length;
+                  var p=it.length?Math.round((d/it.length)*100):0;
+                  return <div key={area.id} style={{marginBottom:9}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:10,color:area.color,fontWeight:600}}>{area.icon} {area.label}</span>
+                      <span style={{fontSize:10,fontWeight:700,color:area.color}}>{d}/{it.length}</span>
+                    </div>
+                    <div style={{background:"#F3F4F6",borderRadius:3,height:5}}>
+                      <div style={{width:p+"%",height:"100%",background:area.color,borderRadius:3,transition:"width .4s"}}/>
+                    </div>
+                  </div>;
+                })}
+              </div>
+              <div style={{background:C.white,borderRadius:10,padding:"16px 18px",border:"1px solid "+C.bord}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.forest,marginBottom:10}}>Acciones Criticas</div>
+                {crits.slice(0,5).map(function(pt){
+                  var area=AREAS.find(function(a){return a.id===pt.area;});
+                  return <div key={pt.id} style={{display:"flex",gap:8,padding:"6px 0",borderBottom:"1px solid "+C.bord}}>
+                    <span>{area?area.icon:""}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pt.title}</div>
+                      <div style={{fontSize:10,color:C.muted}}>{pt.who||"-"} - {pt.due||"Sin fecha"}</div>
+                    </div>
+                    <Badge text={STA[pt.sta].l} color={STA[pt.sta].c} bg={STA[pt.sta].b}/>
+                  </div>;
+                })}
+                {crits.length===0 && <div style={{color:"#059669",fontSize:12}}>Sin criticos pendientes</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view==="vitacora" && (
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:C.forest}}>Vitacora de Puntos de Mejora</div>
+                <div style={{fontSize:11,color:C.muted}}>{pts.length} puntos - {donePts} completados - {crits.length} criticos</div>
+              </div>
+              <button onClick={function(){setEditPt(null);setPtForm(ptF0);setShowPtF(true);}} style={{marginLeft:"auto",background:C.forest,color:"white",border:"none",padding:"8px 15px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12}}>+ Nuevo Punto</button>
+            </div>
+
+            <div style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap"}}>
+              <select value={fArea} onChange={function(e){setFArea(e.target.value);}} style={Object.assign({},SEL,{width:"auto",padding:"6px 9px"})}>
+                <option value="all">Todas las areas</option>
+                {AREAS.map(function(a){return <option key={a.id} value={a.id}>{a.label}</option>;})}
+              </select>
+              <select value={fSta} onChange={function(e){setFSta(e.target.value);}} style={Object.assign({},SEL,{width:"auto",padding:"6px 9px"})}>
+                <option value="all">Todos los estados</option>
+                {Object.keys(STA).map(function(k){return <option key={k} value={k}>{STA[k].l}</option>;})}
+              </select>
+              <select value={fPri} onChange={function(e){setFPri(e.target.value);}} style={Object.assign({},SEL,{width:"auto",padding:"6px 9px"})}>
+                <option value="all">Todas las prioridades</option>
+                {Object.keys(PRI).map(function(k){return <option key={k} value={k}>{PRI[k].l}</option>;})}
+              </select>
+              <span style={{marginLeft:"auto",fontSize:11,color:C.muted,alignSelf:"center"}}>{filtPts.length} resultado(s)</span>
+            </div>
+
+            {showPtF && (
+              <Modal onClose={function(){setShowPtF(false);setEditPt(null);}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.forest,marginBottom:16}}>{editPt?"Editar Punto":"Nuevo Punto de Mejora"}</div>
+                <Fld label="Titulo *"><input value={ptForm.title} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{title:e.target.value});});}} style={INP} placeholder="Ej: Implementar politica AML/CFT"/></Fld>
+                <Fld label="Descripcion"><textarea value={ptForm.desc} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{desc:e.target.value});});}} rows={3} style={Object.assign({},INP,{resize:"vertical"})}/></Fld>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <Fld label="Responsable"><input value={ptForm.who} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{who:e.target.value});});}} style={INP} placeholder="Dpto. Legal"/></Fld>
+                  <Fld label="Fecha limite"><input type="date" value={ptForm.due} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{due:e.target.value});});}} style={INP}/></Fld>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:18}}>
+                  <Fld label="Area">
+                    <select value={ptForm.area} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{area:e.target.value});});}} style={SEL}>
+                      {AREAS.map(function(a){return <option key={a.id} value={a.id}>{a.label}</option>;})}
+                    </select>
+                  </Fld>
+                  <Fld label="Prioridad">
+                    <select value={ptForm.pri} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{pri:e.target.value});});}} style={SEL}>
+                      {Object.keys(PRI).map(function(k){return <option key={k} value={k}>{PRI[k].l}</option>;})}
+                    </select>
+                  </Fld>
+                  <Fld label="Estado">
+                    <select value={ptForm.sta} onChange={function(e){setPtForm(function(f){return Object.assign({},f,{sta:e.target.value});});}} style={SEL}>
+                      {Object.keys(STA).map(function(k){return <option key={k} value={k}>{STA[k].l}</option>;})}
+                    </select>
+                  </Fld>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={savePt} style={{flex:1,background:C.forest,color:"white",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:13}}>Guardar</button>
+                  <button onClick={function(){setShowPtF(false);setEditPt(null);}} style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontSize:13}}>Cancelar</button>
+                </div>
+              </Modal>
+            )}
+
+            <div style={{display:"flex",flexDirection:"column",gap:9}}>
+              {filtPts.map(function(pt){
+                var area=AREAS.find(function(a){return a.id===pt.area;});
+                var pri=PRI[pt.pri]; var sta=STA[pt.sta];
+                var isNote=noteFor===pt.id;
+                var aColor=area?area.color:C.bord;
+                return <div key={pt.id} style={{background:C.white,borderRadius:9,padding:"13px 15px",border:"1px solid "+C.bord,borderLeft:"4px solid "+aColor}}>
+                  <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                    <span style={{fontSize:17,marginTop:1}}>{area?area.icon:""}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:3}}>
+                        <span style={{fontSize:13,fontWeight:700}}>{pt.title}</span>
+                        <Badge text={pri.l} color={pri.c} bg={pri.b}/>
+                        <Badge text={sta.l} color={sta.c} bg={sta.b}/>
+                      </div>
+                      <div style={{fontSize:11,color:C.muted,marginBottom:4,lineHeight:1.5}}>{pt.desc}</div>
+                      <div style={{display:"flex",gap:10,fontSize:10,color:"#9CA3AF",flexWrap:"wrap"}}>
+                        {pt.who && <span>👤 {pt.who}</span>}
+                        {pt.due && <span>📅 {pt.due}</span>}
+                        {pt.notes && pt.notes.length>0 && <span>📌 {pt.notes.length} nota(s)</span>}
+                      </div>
+                      {pt.notes && pt.notes.slice(-2).map(function(n,i){
+                        return <div key={i} style={{fontSize:10,color:"#374151",background:"#F9FAFB",padding:"4px 8px",borderRadius:4,marginTop:4}}>- {n.t} <span style={{color:C.muted}}>({new Date(n.d).toLocaleDateString("es-DO")})</span></div>;
+                      })}
+                      {isNote && (
+                        <div style={{display:"flex",gap:6,marginTop:6}}>
+                          <input value={noteT} onChange={function(e){setNoteT(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")addNote(pt.id);}} placeholder="Nota de seguimiento..." style={Object.assign({},INP,{flex:1,padding:"5px 8px"})}/>
+                          <button onClick={function(){addNote(pt.id);}} style={{background:C.forest,color:"white",border:"none",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontSize:11}}>+</button>
+                          <button onClick={function(){setNoteFor(null);}} style={{background:"#F3F4F6",border:"none",padding:"5px 8px",borderRadius:5,cursor:"pointer",fontSize:11}}>X</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{display:"flex",gap:4,flexShrink:0}}>
+                      <button onClick={function(){setNoteFor(isNote?null:pt.id);}} style={{background:"#F3F4F6",border:"none",padding:"5px 8px",borderRadius:6,cursor:"pointer",fontSize:12}} title="Nota">📌</button>
+                      <button onClick={function(){openEditPt(pt);}} style={{background:"#F3F4F6",border:"none",padding:"5px 8px",borderRadius:6,cursor:"pointer",fontSize:12}} title="Editar">✏️</button>
+                      <button onClick={function(){setPts(function(ps){return ps.filter(function(p){return p.id!==pt.id;});});}} style={{background:"#FEE2E2",border:"none",padding:"5px 8px",borderRadius:6,cursor:"pointer",fontSize:12}} title="Eliminar">🗑</button>
+                    </div>
+                  </div>
+                </div>;
+              })}
+              {filtPts.length===0 && <div style={{textAlign:"center",padding:"32px",color:C.muted,background:C.white,borderRadius:9,border:"1px dashed "+C.bord}}>Sin puntos con los filtros seleccionados</div>}
+            </div>
+          </div>
+        )}
+
+        {view==="proyectos" && (
+          <div>
+            {!actPr ? (
+              <div>
+                <div style={{display:"flex",alignItems:"center",marginBottom:14}}>
+                  <div>
+                    <div style={{fontSize:16,fontWeight:700,color:C.forest}}>Portafolio Institucional de Proyectos</div>
+                    <div style={{fontSize:11,color:C.muted}}>Track record para acreditacion GCF - {projs.length} proyectos</div>
+                  </div>
+                  <button onClick={function(){setEditPr(null);setPrForm(prF0);setShowPrF(true);}} style={{marginLeft:"auto",background:C.forest,color:"white",border:"none",padding:"8px 15px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12}}>+ Nuevo Proyecto</button>
+                </div>
+
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:16}}>
+                  {[
+                    {l:"GCF Gestionado",v:fmtUSD(totFund),i:"💰",c:"#B45309"},
+                    {l:"Co-financiamiento",v:fmtUSD(totCoFin),i:"🤝",c:C.mid},
+                    {l:"Beneficiarios",v:totBenef.toLocaleString(),i:"👥",c:"#1C4E7A"},
+                    {l:"GHG reducido",v:totGHG.toLocaleString()+" tCO2e",i:"🌡",c:"#059669"},
+                    {l:"% Mujeres prom.",v:Math.round(projs.reduce(function(a,p){return a+(Number(p.pctW)||0);},0)/Math.max(projs.length,1))+"%",i:"⚖",c:"#6B4C9A"},
+                  ].map(function(k,i){
+                    return <div key={i} style={{background:C.white,borderRadius:8,padding:"11px 10px",border:"1px solid "+C.bord,borderTop:"3px solid "+k.c}}>
+                      <div style={{fontSize:16}}>{k.i}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:k.c,marginTop:2}}>{k.v}</div>
+                      <div style={{fontSize:9,color:C.muted,marginTop:1}}>{k.l}</div>
+                    </div>;
+                  })}
+                </div>
+
+                {showPrF && (
+                  <Modal onClose={function(){setShowPrF(false);setEditPr(null);}} wide={true}>
+                    <div style={{fontSize:14,fontWeight:700,color:C.forest,marginBottom:16}}>{editPr?"Editar Proyecto":"Registrar Proyecto Institucional"}</div>
+                    <Fld label="Titulo del Proyecto *"><input value={prForm.title} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{title:e.target.value});});}} style={INP}/></Fld>
+                    <Fld label="Descripcion"><textarea value={prForm.desc} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{desc:e.target.value});});}} rows={2} style={Object.assign({},INP,{resize:"vertical"})}/></Fld>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                      <Fld label="Estado"><select value={prForm.sta} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{sta:e.target.value});});}} style={SEL}>{Object.keys(PST).map(function(k){return <option key={k} value={k}>{PST[k].l}</option>;})}</select></Fld>
+                      <Fld label="Area de Resultado GCF"><select value={prForm.area} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{area:e.target.value});});}} style={SEL}>{RAREAS.map(function(r){return <option key={r} value={r}>{r}</option>;})}</select></Fld>
+                      <Fld label="Tipo"><select value={prForm.type} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{type:e.target.value});});}} style={SEL}><option value="mitigacion">Mitigacion</option><option value="adaptacion">Adaptacion</option><option value="ambos">Mitig. + Adapt.</option></select></Fld>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      <Fld label="Instrumento"><select value={prForm.inst} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{inst:e.target.value});});}} style={SEL}>{INSTRU.map(function(r){return <option key={r} value={r}>{r}</option>;})}</select></Fld>
+                      <Fld label="Riesgo E&S"><select value={prForm.risk} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{risk:e.target.value});});}} style={SEL}><option value="A">A - Alto</option><option value="B">B - Medio</option><option value="C">C - Bajo</option></select></Fld>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+                      <Fld label="Total USD"><input type="number" value={prForm.total} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{total:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="GCF USD"><input type="number" value={prForm.gcf} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{gcf:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="Co-financ. USD"><input type="number" value={prForm.cofin} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{cofin:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="Ejecutado USD"><input type="number" value={prForm.exec} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{exec:e.target.value});});}} style={INP}/></Fld>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+                      <Fld label="Inicio"><input type="date" value={prForm.ini} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{ini:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="Fin"><input type="date" value={prForm.fin} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{fin:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="Provincia"><select value={prForm.prov} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{prov:e.target.value});});}} style={SEL}>{PROVS.map(function(r){return <option key={r} value={r}>{r}</option>;})}</select></Fld>
+                      <Fld label="GHG (tCO2e)"><input type="number" value={prForm.ghg} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{ghg:e.target.value});});}} style={INP}/></Fld>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                      <Fld label="Beneficiarios"><input type="number" value={prForm.benef} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{benef:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="% Mujeres"><input type="number" value={prForm.pctW} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{pctW:e.target.value});});}} style={INP}/></Fld>
+                      <Fld label="Socios/Partners"><input value={prForm.part} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{part:e.target.value});});}} style={INP}/></Fld>
+                    </div>
+                    <Fld label="Lecciones aprendidas"><textarea value={prForm.lec} onChange={function(e){setPrForm(function(f){return Object.assign({},f,{lec:e.target.value});});}} rows={2} style={Object.assign({},INP,{resize:"vertical"})}/></Fld>
+                    <div style={{display:"flex",gap:8,marginTop:4}}>
+                      <button onClick={savePr} style={{flex:1,background:C.forest,color:"white",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:13}}>Guardar Proyecto</button>
+                      <button onClick={function(){setShowPrF(false);setEditPr(null);}} style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontSize:13}}>Cancelar</button>
+                    </div>
+                  </Modal>
+                )}
+
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {projs.map(function(pr){
+                    var st=PST[pr.sta]; var rk=RSK[pr.risk];
+                    var ep=pr.total?Math.round((Number(pr.exec||0)/Number(pr.total))*100):0;
+                    var tp=pr.type==="mitigacion"?"Mitigacion":pr.type==="adaptacion"?"Adaptacion":"Mitig.+Adapt.";
+                    return <div key={pr.id} style={{background:C.white,borderRadius:10,border:"1px solid "+C.bord,overflow:"hidden"}}>
+                      <div style={{padding:"14px 16px",cursor:"pointer"}} onClick={function(){setActPr(pr);}}>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
+                          <Badge text={st.l} color={st.c} bg={st.b}/>
+                          <Badge text={tp} color={C.forest} bg="#E6F0EC"/>
+                          <Badge text={rk.l} color={rk.c} bg={rk.b}/>
+                          <Badge text={pr.inst} color={C.muted} bg="#F3F4F6" size={10}/>
+                        </div>
+                        <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:14,fontWeight:700,marginBottom:3}}>{pr.title}</div>
+                            <div style={{fontSize:11,color:C.muted,lineHeight:1.5}}>{pr.desc?pr.desc.slice(0,130):""}{pr.desc&&pr.desc.length>130?"...":""}</div>
+                            <div style={{display:"flex",gap:14,marginTop:8,fontSize:10,color:"#9CA3AF",flexWrap:"wrap"}}>
+                              <span>📍 {pr.prov}</span>
+                              <span>👥 {(pr.benef||0).toLocaleString()} benef. ({pr.pctW||0}% mujeres)</span>
+                              {pr.ghg>0 && <span>🌡 {Number(pr.ghg).toLocaleString()} tCO2e</span>}
+                              {pr.part && <span>🤝 {pr.part}</span>}
+                            </div>
+                            {ep>0 && <div style={{marginTop:8}}>
+                              <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:C.muted,marginBottom:2}}><span>Ejecucion presupuestaria</span><span>{ep}%</span></div>
+                              <div style={{background:"#F3F4F6",borderRadius:3,height:4}}><div style={{width:ep+"%",height:"100%",background:st.c,borderRadius:3}}/></div>
+                            </div>}
+                          </div>
+                          <div style={{textAlign:"right",flexShrink:0}}>
+                            <div style={{fontSize:17,fontWeight:700,color:C.forest}}>{fmtUSD(pr.total||0)}</div>
+                            <div style={{fontSize:10,color:C.muted}}>GCF: {fmtUSD(pr.gcf||0)}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{borderTop:"1px solid "+C.bord,padding:"7px 14px",background:C.sand,display:"flex",gap:8,justifyContent:"flex-end"}}>
+                        <button onClick={function(e){e.stopPropagation();openEditPr(pr);}} style={{background:"transparent",border:"1px solid "+C.bord,padding:"3px 10px",borderRadius:5,cursor:"pointer",fontSize:11}}>Editar</button>
+                        <button onClick={function(e){e.stopPropagation();setProjs(function(ps){return ps.filter(function(p){return p.id!==pr.id;});});if(actPr&&actPr.id===pr.id)setActPr(null);}} style={{background:"#FEE2E2",border:"none",padding:"3px 10px",borderRadius:5,cursor:"pointer",fontSize:11,color:"#DC2626"}}>Eliminar</button>
+                      </div>
+                    </div>;
+                  })}
+                  {projs.length===0 && <div style={{textAlign:"center",padding:"36px",color:C.muted,background:C.white,borderRadius:9,border:"1px dashed "+C.bord}}>Sin proyectos. Agrega el portafolio institucional como evidencia para acreditacion GCF.</div>}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <button onClick={function(){setActPr(null);}} style={{background:"transparent",border:"1px solid "+C.bord,padding:"5px 12px",borderRadius:6,cursor:"pointer",fontSize:11,marginBottom:14}}>Volver al portafolio</button>
+                <div style={{background:C.white,borderRadius:12,border:"1px solid "+C.bord,padding:"20px 22px"}}>
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>
+                    <Badge text={PST[actPr.sta].l} color={PST[actPr.sta].c} bg={PST[actPr.sta].b} size={12}/>
+                    <Badge text={RSK[actPr.risk].l} color={RSK[actPr.risk].c} bg={RSK[actPr.risk].b} size={12}/>
+                    <Badge text={actPr.type==="mitigacion"?"Mitigacion":actPr.type==="adaptacion"?"Adaptacion":"Mitig. + Adapt."} color={C.forest} bg="#E6F0EC" size={12}/>
+                  </div>
+                  <div style={{fontSize:18,fontWeight:700,color:C.forest,marginBottom:6}}>{actPr.title}</div>
+                  <div style={{fontSize:12,color:C.muted,marginBottom:18,lineHeight:1.65}}>{actPr.desc}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:18}}>
+                    {[["Presupuesto Total",fmtUSD(actPr.total||0)],["Financ. GCF",fmtUSD(actPr.gcf||0)],["Co-financiamiento",fmtUSD(actPr.cofin||0)],["Ejecutado",fmtUSD(actPr.exec||0)],["Beneficiarios",(actPr.benef||0).toLocaleString()],["% Mujeres",(actPr.pctW||0)+"%"],["GHG reducido",(actPr.ghg||0).toLocaleString()+" tCO2e"],["Instrumento",actPr.inst]].map(function(kv){
+                      return <div key={kv[0]} style={{background:C.sand,borderRadius:7,padding:"9px 11px"}}><div style={{fontSize:9,color:C.muted}}>{kv[0]}</div><div style={{fontSize:13,fontWeight:700,marginTop:2}}>{kv[1]}</div></div>;
+                    })}
+                  </div>
+                  {actPr.lec && <div style={{background:C.goldL,padding:"12px 14px",borderRadius:8,lineHeight:1.65,borderLeft:"3px solid "+C.gold}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#78570A",marginBottom:4}}>Lecciones Aprendidas</div>
+                    <div style={{fontSize:11,color:C.text}}>{actPr.lec}</div>
+                  </div>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {view==="checklist" && (
+          <div>
+            <div style={{display:"flex",alignItems:"flex-start",marginBottom:16,gap:12}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:C.forest}}>Checklist de Acreditacion GCF</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>RAF 2025 (B.42/13) + Pre-screening + GGGI + Condiciones frecuentes del Panel - {doneChk}/{chk.length} completados ({Math.round((doneChk/chk.length)*100)}%)</div>
+              </div>
+              <div style={{marginLeft:"auto",fontSize:10,color:C.muted,textAlign:"right",lineHeight:1.5}}>
+                Haz clic en ✏️ para editar texto o agregar<br/>tu situacion actual en cada requisito.
+              </div>
+            </div>
+
+            {editChk && (
+              <Modal onClose={function(){setEditChk(null);}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.forest,marginBottom:16}}>Editar Requisito</div>
+                <Fld label="Texto del requisito">
+                  <textarea value={chkForm.t} onChange={function(e){setChkForm(function(f){return Object.assign({},f,{t:e.target.value});});}} rows={3} style={Object.assign({},INP,{resize:"vertical"})}/>
+                </Fld>
+                <Fld label="Fuente / Referencia (opcional)">
+                  <input value={chkForm.src} onChange={function(e){setChkForm(function(f){return Object.assign({},f,{src:e.target.value});});}} style={INP}/>
+                </Fld>
+                <Fld label="Situacion actual / Notas internas">
+                  <textarea value={chkForm.nota} onChange={function(e){setChkForm(function(f){return Object.assign({},f,{nota:e.target.value});});}} rows={3} placeholder="Ej: Tenemos borrador en revision. Responsable: Legal. Fecha estimada: julio 2025." style={Object.assign({},INP,{resize:"vertical"})}/>
+                </Fld>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={saveChk} style={{flex:1,background:C.forest,color:"white",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:13}}>Guardar</button>
+                  <button onClick={function(){setEditChk(null);}} style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontSize:13}}>Cancelar</button>
+                </div>
+              </Modal>
+            )}
+
+            {AREAS.map(function(area){
+              var items=chk.filter(function(c){return c.a===area.id;});
+              var d=items.filter(function(c){return c.ok;}).length;
+              var p=items.length?Math.round((d/items.length)*100):0;
+              var isAdding=showAddChk===area.id;
+              return <div key={area.id} style={{marginBottom:14,background:C.white,borderRadius:11,border:"1px solid "+C.bord,overflow:"hidden"}}>
+                <div style={{background:area.color,padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:18}}>{area.icon}</span>
+                  <span style={{color:"white",fontWeight:700,fontSize:12,flex:1}}>{area.label}</span>
+                  <span style={{color:"rgba(255,255,255,0.9)",fontSize:10,background:"rgba(255,255,255,0.2)",padding:"2px 9px",borderRadius:9}}>{d}/{items.length} - {p}%</span>
+                </div>
+                {items.map(function(item){
+                  var isEditing=editChk&&editChk.id===item.id;
+                  return <div key={item.id} style={{borderBottom:"1px solid #F3F4F6",background:item.ok?"#F0FFF5":"white"}}>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"9px 14px"}}>
+                      <input type="checkbox" checked={item.ok} onChange={function(){setChk(function(cl){return cl.map(function(c){return c.id===item.id?Object.assign({},c,{ok:!c.ok}):c;});});}} style={{marginTop:3,accentColor:area.color,width:14,height:14,flexShrink:0,cursor:"pointer"}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:11,color:item.ok?"#9CA3AF":C.text,textDecoration:item.ok?"line-through":"none",lineHeight:1.5}}>{item.t}</div>
+                        <div style={{fontSize:9,color:area.color,opacity:0.7,marginTop:1}}>{item.src}</div>
+                        {item.nota && <div style={{fontSize:10,color:"#374151",background:C.goldL,padding:"4px 8px",borderRadius:4,marginTop:4,borderLeft:"2px solid "+C.gold,lineHeight:1.5}}>{item.nota}</div>}
+                      </div>
+                      <div style={{display:"flex",gap:3,flexShrink:0}}>
+                        <button onClick={function(){setEditChk(item);setChkForm({t:item.t,src:item.src||"",nota:item.nota||""});}} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:12,padding:"2px 4px",color:C.muted}} title="Editar requisito">✏️</button>
+                        <button onClick={function(){setChk(function(cl){return cl.filter(function(c){return c.id!==item.id;});});}} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:12,padding:"2px 4px",color:"#DC2626"}} title="Eliminar">🗑</button>
+                      </div>
+                    </div>
+                  </div>;
+                })}
+                <div style={{padding:"6px 14px 8px",background:"#FAFAFA"}}>
+                  <div style={{background:"#E5E7EB",borderRadius:3,height:4,marginBottom:8}}><div style={{width:p+"%",height:"100%",background:area.color,transition:"width .4s",borderRadius:3}}/></div>
+                  {isAdding ? (
+                    <div style={{display:"flex",gap:6}}>
+                      <input value={newChkT} onChange={function(e){setNewChkT(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")addChkItem(area.id);}} placeholder="Describe el nuevo requisito..." style={Object.assign({},INP,{flex:1,padding:"5px 8px",fontSize:11})}/>
+                      <button onClick={function(){addChkItem(area.id);}} style={{background:area.color,color:"white",border:"none",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:700}}>+ Agregar</button>
+                      <button onClick={function(){setShowAddChk(null);setNewChkT("");}} style={{background:"#F3F4F6",border:"none",padding:"5px 8px",borderRadius:5,cursor:"pointer",fontSize:11}}>X</button>
+                    </div>
+                  ) : (
+                    <button onClick={function(){setShowAddChk(area.id);setNewChkT("");}} style={{background:"transparent",border:"1px dashed "+area.color,color:area.color,padding:"3px 10px",borderRadius:5,cursor:"pointer",fontSize:10,fontWeight:600}}>+ Agregar requisito a {area.label}</button>
+                  )}
+                </div>
+              </div>;
+            })}
+          </div>
+        )}
+
+        {view==="benchmark" && (
+          <div>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.forest}}>Benchmark - Entidades Acreditadas GCF</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:2}}>Lecciones de 6 entidades acreditadas en LAC y SIDS - aplicables al proceso de RD</div>
+            </div>
+            <div style={{background:C.goldL,border:"1px solid "+C.gold,borderRadius:9,padding:"11px 14px",marginBottom:16,fontSize:11,color:"#78570A",lineHeight:1.6}}>
+              Hallazgos clave: 2/3 entidades necesitaron desarrollar politica de genero antes de acreditarse. Mas del 50% tuvo condiciones ESS/ESMS. La politica AML/CFT debe incluir clausulas en contratos con ejecutores. GRM independiente fue condicion en 6+ entidades. El track record documentado pesa tanto como las politicas escritas.
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(290px,1fr))",gap:14,marginBottom:16}}>
+              {BM.map(function(e,i){
+                return <div key={i} style={{background:C.white,borderRadius:11,border:"1px solid "+C.bord,overflow:"hidden"}}>
+                  <div style={{background:e.col,padding:"13px 16px"}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"white"}}>{e.name}</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",marginTop:2}}>{e.country} - {e.type}</div>
+                  </div>
+                  <div style={{padding:"13px 16px"}}>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+                      <Badge text={"Acreditado: "+e.year} color={C.forest} bg={C.sand} size={10}/>
+                      <Badge text={e.scale} color={"#1C4E7A"} bg={"#E8F1F9"} size={10}/>
+                      <Badge text={"Riesgo "+e.risk} color={RSK[e.risk].c} bg={RSK[e.risk].b} size={10}/>
+                    </div>
+                    <div style={{fontSize:10,fontWeight:700,color:C.forest,marginBottom:6}}>Lecciones Clave</div>
+                    {e.lessons.map(function(l,j){
+                      return <div key={j} style={{display:"flex",gap:7,marginBottom:5,fontSize:10,color:C.text,padding:"4px 8px",background:C.sand,borderRadius:4,borderLeft:"2px solid "+e.col}}>
+                        <span style={{color:e.col,flexShrink:0}}>→</span>{l}
+                      </div>;
+                    })}
+                  </div>
+                </div>;
+              })}
+            </div>
+            <div style={{background:C.white,borderRadius:11,border:"1px solid "+C.bord,padding:"16px 18px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.forest,marginBottom:12}}>Aplicabilidad para Republica Dominicana</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:10}}>
+                {[
+                  {t:"Modelo SIDS: Replicar Belice",d:"Establecer Unidad de Finanzas Climaticas en institucion clave. Usar Readiness Grants progresivamente. Belice uso 9 antes de acreditar.",c:C.mid},
+                  {t:"Aprovechar exenciones SIDS",d:"RD como SIDS tiene exenciones en tarifas y mayor flexibilidad en algunos requisitos. Documentar esta condicion en la solicitud.",c:"#1C4E7A"},
+                  {t:"Prioridad #1: Genero + GRM",d:"Son las dos condiciones mas comunes del Panel. Resolverlas ANTES de aplicar aumenta probabilidades de aprobacion sin condicionantes.",c:"#6B4C9A"},
+                  {t:"Documentar track record ya",d:"Registrar retroactivamente todos los proyectos ambientales con metricas E&S y gobernanza. El track record es tan importante como las politicas.",c:"#B45309"},
+                  {t:"Activar alianza GGGI ($4M)",d:"RD tiene $4M Readiness activos con GGGI desde COP30. Activar componente de fortalecimiento institucional inmediatamente.",c:C.forest},
+                  {t:"Consultoria especializada GCF",d:"Contratar experto en formulario Stage 1. Los errores tecnicos pueden costar 6-12 meses de retraso en el proceso.",c:"#374151"},
+                ].map(function(t,i){
+                  return <div key={i} style={{padding:"11px 13px",background:C.sand,borderRadius:7,borderLeft:"3px solid "+t.c}}>
+                    <div style={{fontSize:11,fontWeight:700,color:t.c,marginBottom:4}}>{t.t}</div>
+                    <div style={{fontSize:10,color:C.text,lineHeight:1.55}}>{t.d}</div>
+                  </div>;
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view==="roadmap" && (
+          <div>
+            <div style={{display:"flex",alignItems:"center",marginBottom:14,gap:12}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:C.forest}}>Hoja de Ruta - Acreditacion GCF</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>Proceso estimado: 24-28 meses hasta acreditacion. Haz clic en el estado para cambiarlo, o en ✏️ para editar.</div>
+              </div>
+              <button onClick={function(){setEditML(null);setMlForm({ph:"Fase 1",title:"",desc:"",mo:"",sta:"pendiente",icon:"📋",nota:""});setShowMLF(true);}} style={{marginLeft:"auto",background:C.forest,color:"white",border:"none",padding:"7px 14px",borderRadius:7,cursor:"pointer",fontWeight:700,fontSize:12}}>+ Nuevo Hito</button>
+            </div>
+
+            {showMLF && (
+              <Modal onClose={function(){setShowMLF(false);setEditML(null);}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.forest,marginBottom:16}}>{editML?"Editar Hito":"Nuevo Hito"}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <Fld label="Fase">
+                    <select value={mlForm.ph} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{ph:e.target.value});});}} style={SEL}>
+                      {["Fase 0","Fase 1","Fase 2","Fase 3","Fase 4","Fase 5"].map(function(p){return <option key={p} value={p}>{p}</option>;})}
+                    </select>
+                  </Fld>
+                  <Fld label="Estado">
+                    <select value={mlForm.sta} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{sta:e.target.value});});}} style={SEL}>
+                      <option value="pendiente">Pendiente</option>
+                      <option value="activo">En curso</option>
+                      <option value="completado">Completado</option>
+                    </select>
+                  </Fld>
+                </div>
+                <Fld label="Titulo del Hito *">
+                  <input value={mlForm.title} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{title:e.target.value});});}} style={INP} placeholder="Ej: Aprobacion politica de genero"/>
+                </Fld>
+                <Fld label="Descripcion">
+                  <textarea value={mlForm.desc} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{desc:e.target.value});});}} rows={2} style={Object.assign({},INP,{resize:"vertical"})}/>
+                </Fld>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <Fld label="Mes(es) estimado(s)">
+                    <input value={mlForm.mo} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{mo:e.target.value});});}} style={INP} placeholder="Ej: 3-6"/>
+                  </Fld>
+                  <Fld label="Icono">
+                    <input value={mlForm.icon} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{icon:e.target.value});});}} style={INP} placeholder="Emoji, ej: 📋"/>
+                  </Fld>
+                </div>
+                <Fld label="Situacion actual / Avance real">
+                  <textarea value={mlForm.nota} onChange={function(e){setMlForm(function(f){return Object.assign({},f,{nota:e.target.value});});}} rows={3} placeholder="Ej: Reunimos con GGGI el 15 de mayo. Borrador de politica en revision con Legal. Esperamos aprobacion para julio." style={Object.assign({},INP,{resize:"vertical"})}/>
+                </Fld>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={saveML} style={{flex:1,background:C.forest,color:"white",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:13}}>Guardar Hito</button>
+                  <button onClick={function(){setShowMLF(false);setEditML(null);}} style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",padding:10,borderRadius:8,cursor:"pointer",fontSize:13}}>Cancelar</button>
+                </div>
+              </Modal>
+            )}
+
+            <div style={{background:C.white,borderRadius:11,border:"1px solid "+C.bord,padding:"18px 20px",marginBottom:14}}>
+              {miles.map(function(m,i){
+                var phColors={"Fase 0":"#0B3B2E","Fase 1":"#1A5C45","Fase 2":"#1C4E7A","Fase 3":"#6B4C9A","Fase 4":"#B45309","Fase 5":"#059669"};
+                var phC=phColors[m.ph]||C.forest;
+                var stMap={activo:{l:"En curso",c:"#2563EB",b:"#DBEAFE"},completado:{l:"Completado",c:"#059669",b:"#D1FAE5"},pendiente:{l:"Pendiente",c:C.muted,b:"#F3F4F6"}};
+                var stCfg=stMap[m.sta]||stMap["pendiente"];
+                return <div key={m.id||i} style={{display:"flex",gap:14,marginBottom:12}}>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
+                    <div style={{width:36,height:36,borderRadius:"50%",background:phC,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{m.icon}</div>
+                    {i<miles.length-1 && <div style={{width:2,flex:1,minHeight:12,background:phC+"30",margin:"3px 0"}}/>}
+                  </div>
+                  <div style={{flex:1,paddingBottom:10,borderBottom:i<miles.length-1?"1px solid #F3F4F6":"none"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginBottom:3}}>
+                      <Badge text={m.ph} color={phC} bg={phC+"18"} size={9}/>
+                      <span style={{fontSize:12,fontWeight:700}}>{m.title}</span>
+                      <button onClick={function(){cycleMLSta(m.id||("m"+i));}} style={{background:stCfg.b,border:"none",padding:"2px 8px",borderRadius:8,cursor:"pointer",fontSize:9,fontWeight:700,color:stCfg.c}} title="Clic para cambiar estado">{stCfg.l} ↻</button>
+                      {m.mo && <Badge text={"Mes "+m.mo} color={C.muted} bg="#F3F4F6" size={9}/>}
+                      <div style={{marginLeft:"auto",display:"flex",gap:3}}>
+                        <button onClick={function(){openEditML(m);}} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:11,padding:"1px 4px",color:C.muted}} title="Editar hito">✏️</button>
+                        <button onClick={function(){setMiles(function(ms){return ms.filter(function(x){return (x.id||("m"+ms.indexOf(x)))!==(m.id||("m"+i));});});}} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:11,padding:"1px 4px",color:"#DC2626"}} title="Eliminar">🗑</button>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,color:C.muted,lineHeight:1.6}}>{m.desc}</div>
+                    {m.nota && <div style={{fontSize:10,color:"#374151",background:C.goldL,padding:"6px 10px",borderRadius:5,marginTop:5,borderLeft:"2px solid "+C.gold,lineHeight:1.55}}><strong style={{color:"#78570A"}}>Situacion actual:</strong> {m.nota}</div>}
+                  </div>
+                </div>;
+              })}
+            </div>
+
+            <div style={{background:C.white,borderRadius:11,border:"1px solid "+C.bord,padding:"16px 18px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.forest,marginBottom:10}}>Factores Criticos de Exito con GGGI</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:9}}>
+                {[
+                  {t:"GGGI como guia tecnico",d:"Usar a GGGI al maximo para gap assessment, desarrollo de politicas y revision del formulario antes de enviarlo al GCF."},
+                  {t:"Readiness Grants activos",d:"Activar los fondos Readiness disponibles. Solicitar via CNCCMDL con GGGI como Delivery Partner certificado."},
+                  {t:"Pre-screening primero",d:"Bajo RAF 2025, el pre-screening es el primer paso formal. Enviarlo antes del 27 mayo 2026 para la ventana de julio."},
+                  {t:"AND como aliado estrategico",d:"Coordinacion constante con CNCCMDL. Su carta de nominacion es el primer documento requerido."},
+                  {t:"Documentar todo ahora",d:"Registrar cada proyecto ambiental con metricas E&S. El track record es tan importante como las politicas escritas."},
+                  {t:"Genero y GRM primero",d:"Son las condiciones mas comunes del Panel. Resolverlas antes de aplicar aumenta la probabilidad de aprobar sin condicionantes."},
+                ].map(function(f,i){
+                  return <div key={i} style={{padding:"9px 11px",background:C.sand,borderRadius:7,borderLeft:"3px solid "+C.gold}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#78570A",marginBottom:3}}>{f.t}</div>
+                    <div style={{fontSize:9,color:C.text,lineHeight:1.5}}>{f.d}</div>
+                  </div>;
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view==="ai" && (
+          <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 185px)",minHeight:520}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{width:38,height:38,borderRadius:"50%",background:C.forest,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🌿</div>
+              <div>
+                <div style={{fontWeight:700,fontSize:13,color:C.forest}}>Asesor IA - Acreditacion GCF - RD</div>
+                <div style={{fontSize:10,color:C.muted}}>RAF 2025 - CNCCMDL - GGGI - NDC-RD - Benchmark 6 entidades - Portafolio activo</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+              {["Que brechas criticas tenemos?","Analiza portafolio vs GCF","Como acelerar la acreditacion?","Draft politica de genero GCF","Explica el RAF 2025","Condiciones frecuentes del Panel"].map(function(q){
+                return <button key={q} onClick={function(){setAiIn(q);}} style={{fontSize:10,padding:"3px 9px",borderRadius:10,border:"1px solid "+C.bord,background:C.white,cursor:"pointer",color:C.text}}>{q}</button>;
+              })}
+            </div>
+            <div style={{flex:1,overflowY:"auto",background:C.white,borderRadius:10,border:"1px solid "+C.bord,padding:18,display:"flex",flexDirection:"column",gap:14}}>
+              {msgs.map(function(m,i){
+                return <div key={i} style={{display:"flex",gap:8,flexDirection:m.role==="user"?"row-reverse":"row"}}>
+                  <div style={{width:30,height:30,borderRadius:"50%",background:m.role==="user"?C.gold:C.forest,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>{m.role==="user"?"👤":"🌿"}</div>
+                  <div style={{maxWidth:"78%",padding:"11px 13px",borderRadius:m.role==="user"?"11px 4px 11px 11px":"4px 11px 11px 11px",background:m.role==="user"?C.forest:"#F9FAFB",color:m.role==="user"?"white":C.text,fontSize:11,lineHeight:1.65,whiteSpace:"pre-wrap"}}>{m.text}</div>
+                </div>;
+              })}
+              {aiLoad && <div style={{display:"flex",gap:8}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:C.forest,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>🌿</div>
+                <div style={{padding:"11px 13px",background:"#F9FAFB",borderRadius:"4px 11px 11px 11px",fontSize:11,color:C.muted}}>Analizando contexto institucional...</div>
+              </div>}
+              <div ref={aiRef}/>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:8}}>
+              <input value={aiIn} onChange={function(e){setAiIn(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")sendAI();}} placeholder="Consulta sobre acreditacion GCF, brechas, politicas, estrategias..." style={Object.assign({},INP,{flex:1,padding:"10px 13px"})}/>
+              <button onClick={sendAI} disabled={aiLoad||!aiIn.trim()} style={{background:aiLoad||!aiIn.trim()?"#9CA3AF":C.forest,color:"white",border:"none",padding:"10px 16px",borderRadius:7,cursor:aiLoad||!aiIn.trim()?"not-allowed":"pointer",fontWeight:700,fontSize:11}}>{aiLoad?"...":"Enviar"}</button>
+            </div>
+          </div>
+        )}
+
+
+        {view==="documentos" && (
+          <div>
+            <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:16}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:C.forest}}>Centro de Documentos</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:2}}>Sube politicas, auditorias, estatutos y borradores para analizarlos con IA contra los requisitos GCF/RAF 2025</div>
+              </div>
+              <div style={{marginLeft:"auto",background:C.goldL,border:"1px solid "+C.gold,borderRadius:8,padding:"8px 12px",fontSize:10,color:"#78570A",lineHeight:1.5,maxWidth:220,flexShrink:0}}>
+                <strong>Formatos:</strong> PDF, PNG, JPG, WEBP, TXT<br/>
+                Max 4MB. Para DOCX usa Archivo → Guardar como PDF
+              </div>
+            </div>
+            <div style={{background:C.white,borderRadius:11,border:"1px solid "+C.bord,padding:"18px 20px",marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.forest,marginBottom:14}}>Subir Nuevo Documento</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:12}}>
+                <Fld label="Area GCF"><select value={docUploadArea} onChange={function(e){setDocUploadArea(e.target.value);}} style={SEL}>{AREAS.map(function(a){return <option key={a.id} value={a.id}>{a.label}</option>;})}</select></Fld>
+                <Fld label="Estado"><select value={docUploadStatus} onChange={function(e){setDocUploadStatus(e.target.value);}} style={SEL}>{Object.keys(DOC_STATUS).map(function(k){return <option key={k} value={k}>{DOC_STATUS[k].l}</option>;})}</select></Fld>
+                <Fld label="Descripcion (opcional)"><input value={docUploadDesc} onChange={function(e){setDocUploadDesc(e.target.value);}} style={INP} placeholder="Ej: Borrador AML/CFT v2"/></Fld>
+              </div>
+              <label style={{display:"block",border:"2px dashed "+C.gold,borderRadius:10,padding:"22px",textAlign:"center",cursor:"pointer",background:C.goldL}}>
+                <div style={{fontSize:32,marginBottom:6}}>📎</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.forest}}>Haz clic para seleccionar archivo</div>
+                <div style={{fontSize:11,color:C.muted,marginTop:3}}>PDF, PNG, JPG, WEBP, TXT - Maximo 4MB</div>
+                <input type="file" onChange={handleUpload} accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt" style={{display:"none"}}/>
+              </label>
+              {docUploadErr && <div style={{fontSize:11,color:"#DC2626",marginTop:8,padding:"8px 12px",background:"#FEE2E2",borderRadius:6}}>{docUploadErr}</div>}
+            </div>
+            {docs.length===0 && (
+              <div style={{textAlign:"center",padding:"48px 20px",color:C.muted,background:C.white,borderRadius:11,border:"1px dashed "+C.bord}}>
+                <div style={{fontSize:40,marginBottom:12}}>📂</div>
+                <div style={{fontSize:14,fontWeight:600,marginBottom:6}}>Sin documentos aun</div>
+                <div style={{fontSize:12}}>Sube tus politicas, manuales, auditorias o borradores para analizarlos contra los requisitos GCF</div>
+              </div>
+            )}
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {docs.map(function(doc){
+                var area=AREAS.find(function(a){return a.id===doc.area;})||{label:doc.area,color:C.muted,bg:C.sand};
+                var dSta=DOC_STATUS[doc.status]||{l:"Borrador",c:"#6B7280",b:"#F3F4F6"};
+                var analysis=docAnalysis[doc.id]||{};
+                return <div key={doc.id} style={{background:C.white,borderRadius:11,border:"1px solid "+C.bord,overflow:"hidden"}}>
+                  <div style={{padding:"14px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
+                    <div style={{fontSize:28,flexShrink:0}}>{fileIconFn(doc.type)}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:5}}>
+                        <Badge text={area.label} color={area.color} bg={area.bg} size={10}/>
+                        <Badge text={dSta.l} color={dSta.c} bg={dSta.b} size={10}/>
+                        <span style={{fontSize:10,color:C.muted}}>{fmtSize(doc.size)} - {new Date(doc.uploadedAt).toLocaleDateString("es-DO")}</span>
+                      </div>
+                      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2}}>{doc.name}</div>
+                      {doc.desc && <div style={{fontSize:11,color:C.muted}}>{doc.desc}</div>}
+                      {!doc.b64 && <div style={{fontSize:10,color:"#D97706",marginTop:4}}>Recarga el archivo para poder analizarlo con IA</div>}
+                    </div>
+                    <div style={{display:"flex",gap:6,flexShrink:0}}>
+                      <button onClick={function(){analyzeDoc(doc);}} disabled={analysis.loading||!doc.b64} style={{background:analysis.loading||!doc.b64?"#9CA3AF":C.forest,color:"white",border:"none",padding:"7px 12px",borderRadius:7,cursor:analysis.loading||!doc.b64?"not-allowed":"pointer",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{analysis.loading?"Analizando...":"Analizar con IA"}</button>
+                      <button onClick={function(){deleteDoc(doc.id);}} style={{background:"#FEE2E2",border:"none",padding:"7px 9px",borderRadius:7,cursor:"pointer",fontSize:12,color:"#DC2626"}}>🗑</button>
+                    </div>
+                  </div>
+                  {analysis.text && (
+                    <div style={{borderTop:"1px solid "+C.bord,padding:"16px",background:"#FAFDF9"}}>
+                      <div style={{fontSize:11,fontWeight:700,color:C.forest,marginBottom:8}}>Analisis GCF - {area.label}</div>
+                      <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{analysis.text}</div>
+                    </div>
+                  )}
+                </div>;
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>
+      <style>{"*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}select,input,textarea{font-family:inherit}"}</style>
+    </div>
+  );
+
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+  </script>
+</body>
+</html>
